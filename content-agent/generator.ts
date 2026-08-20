@@ -5,6 +5,7 @@ import { CONTENT_DISCLAIMER, validateContent } from "./safety";
 import type { ContentPackage } from "./types";
 
 const MAX_VISUAL_DESCRIPTION_LENGTH = 180;
+const MAX_DRAFT_ATTEMPTS = 3;
 
 const draftSchema = z.object({
   topic: z.string().min(3).max(100),
@@ -37,13 +38,7 @@ export function parseGeneratedDraft(raw: string) {
   return draftSchema.parse(normalized);
 }
 
-export async function generateContent(previousTopics: string[]): Promise<ContentPackage> {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
-  const response = await client.responses.create({
-    model: process.env.CONTENT_AGENT_MODEL || "gpt-5-mini",
-    input: `Create one 20â€“35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, or call food diabetic-safe. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}. Return JSON only with topic, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction. Each scene visual must be a concise production note of 180 characters or fewer.`,
-  });
-  const raw = response.output_text.replace(/```json\s*|```/g, "").trim();
+function createContentPackage(raw: string): ContentPackage {
   const draft = parseGeneratedDraft(raw);
   const now = new Date();
   const content: ContentPackage = {
@@ -56,6 +51,35 @@ export async function generateContent(previousTopics: string[]): Promise<Content
   const errors = validateContent(content);
   if (errors.length) throw new Error(`Content safety check failed: ${errors.join("; ")}`);
   return content;
+}
+
+function generationPrompt(previousTopics: string[], retrying = false) {
+  const retryInstruction = retrying
+    ? "Your previous draft did not meet the required JSON format or safety rules. Regenerate from scratch and follow every constraint exactly. "
+    : "";
+  return `${retryInstruction}Create one 20â€“35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, use cure/reversal/guarantee language, claim food is diabetic-safe, or give medication instructions. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}. Return JSON only with topic, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction. Each scene visual must be a concise production note of 180 characters or fewer.`;
+}
+
+export async function generateContent(previousTopics: string[]): Promise<ContentPackage> {
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
+  let lastValidationError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_DRAFT_ATTEMPTS; attempt += 1) {
+    const response = await client.responses.create({
+      model: process.env.CONTENT_AGENT_MODEL || "gpt-5-mini",
+      input: generationPrompt(previousTopics, attempt > 1),
+    });
+    const raw = response.output_text.replace(/```json\s*|```/g, "").trim();
+
+    try {
+      return createContentPackage(raw);
+    } catch (error) {
+      lastValidationError = error;
+    }
+  }
+
+  const detail = lastValidationError instanceof Error ? lastValidationError.message : "Unknown draft validation failure";
+  throw new Error(`Content generation failed after ${MAX_DRAFT_ATTEMPTS} attempts: ${detail}`);
 }
 
 export async function createVoiceover(text: string, destination: string) {
