@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: rm -f package-lock.json && npm install --ignore-scripts --registry=https://registry.npmjs.org/
       - uses: actions/cache/restore@v4
         with:
           path: content-agent/state.json
