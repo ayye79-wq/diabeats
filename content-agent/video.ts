@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 
 function escapeDrawtext(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'").replace(/%/g, "\\%").replace(/\n/g, " ");
+  return value.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/,/g, "\\,").replace(/'/g, "\\'").replace(/%/g, "\\%").replace(/\n/g, " ");
 }
 
 export async function renderVerticalVideo(audioPath: string, destination: string, hook: string, callToAction: string) {
