@@ -4,24 +4,47 @@ import { z } from "zod";
 import { CONTENT_DISCLAIMER, validateContent } from "./safety";
 import type { ContentPackage } from "./types";
 
+const MAX_VISUAL_DESCRIPTION_LENGTH = 180;
+
 const draftSchema = z.object({
   topic: z.string().min(3).max(100),
   hook: z.string().min(5).max(150),
   voiceover: z.string().min(40).max(900),
-  scenes: z.array(z.object({ seconds: z.number().int().min(2).max(8), onScreenText: z.string().max(90), visual: z.string().max(180) })).min(3).max(7),
+  scenes: z.array(z.object({ seconds: z.number().int().min(2).max(8), onScreenText: z.string().max(90), visual: z.string().max(MAX_VISUAL_DESCRIPTION_LENGTH) })).min(3).max(7),
   caption: z.string().min(10).max(1200),
   hashtags: z.array(z.string().regex(/^#[A-Za-z0-9_]+$/)).min(2).max(8),
   callToAction: z.string().min(3).max(160),
 }).strict();
 
+function shortenVisualDescription(value: unknown) {
+  if (typeof value !== "string" || value.length <= MAX_VISUAL_DESCRIPTION_LENGTH) return value;
+  return `${value.slice(0, MAX_VISUAL_DESCRIPTION_LENGTH - 1).trimEnd()}…`;
+}
+
+export function parseGeneratedDraft(raw: string) {
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { scenes?: unknown }).scenes)) {
+    return draftSchema.parse(parsed);
+  }
+
+  const normalized = {
+    ...parsed,
+    scenes: (parsed as { scenes: unknown[] }).scenes.map((scene) => {
+      if (!scene || typeof scene !== "object") return scene;
+      return { ...scene, visual: shortenVisualDescription((scene as { visual?: unknown }).visual) };
+    }),
+  };
+  return draftSchema.parse(normalized);
+}
+
 export async function generateContent(previousTopics: string[]): Promise<ContentPackage> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
   const response = await client.responses.create({
     model: process.env.CONTENT_AGENT_MODEL || "gpt-5-mini",
-    input: `Create one 20â€“35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, or call food diabetic-safe. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}. Return JSON only with topic, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction.`,
+    input: `Create one 20â€“35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, or call food diabetic-safe. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}. Return JSON only with topic, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction. Each scene visual must be a concise production note of 180 characters or fewer.`,
   });
   const raw = response.output_text.replace(/```json\s*|```/g, "").trim();
-  const draft = draftSchema.parse(JSON.parse(raw));
+  const draft = parseGeneratedDraft(raw);
   const now = new Date();
   const content: ContentPackage = {
     ...draft,
