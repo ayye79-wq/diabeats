@@ -1,0 +1,11 @@
+node_modules/**
+.git/**
+server_dist/**
+static-build/**
+attached_assets/**
+.expo/**
+android/**
+ios/**
+.cache/**
+.local/**
+**/*.log

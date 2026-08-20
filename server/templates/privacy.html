@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Privacy Policy — DiabEats</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --green: #166534;
+        --green-light: #22c55e;
+        --green-bg: #f0fdf4;
+        --green-border: #bbf7d0;
+        --text: #111827;
+        --text-muted: #6b7280;
+        --bg: #ffffff;
+        --border: #e5e7eb;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --green: #4ade80;
+          --green-light: #86efac;
+          --green-bg: #052e16;
+          --green-border: #166534;
+          --text: #f9fafb;
+          --text-muted: #9ca3af;
+          --bg: #030712;
+          --border: #1f2937;
+        }
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.7;
+        padding: 0 16px;
+      }
+
+      header {
+        border-bottom: 1px solid var(--border);
+        padding: 24px 0 20px;
+        margin-bottom: 40px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .logo-mark {
+        width: 36px;
+        height: 36px;
+        background: var(--green);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      .brand {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--green);
+        text-decoration: none;
+      }
+
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding-bottom: 80px;
+      }
+
+      h1 {
+        font-size: 32px;
+        font-weight: 800;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+
+      .updated {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 40px;
+      }
+
+      h2 {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 36px 0 10px;
+        color: var(--text);
+      }
+
+      p {
+        font-size: 15px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      ul {
+        padding-left: 20px;
+        margin-bottom: 12px;
+      }
+
+      li {
+        font-size: 15px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+
+      .callout {
+        background: var(--green-bg);
+        border: 1px solid var(--green-border);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 24px 0;
+      }
+
+      .callout p {
+        color: var(--green);
+        font-size: 14px;
+        margin: 0;
+      }
+
+      a { color: var(--green); }
+
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 24px 0;
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-muted);
+        max-width: 720px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo-mark">🥗</div>
+      <a href="/" class="brand">DiabEats</a>
+    </header>
+
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: April 2026</p>
+
+      <div class="callout">
+        <p>DiabEats is a decision-support tool, not a medical service. We do not collect or store any personally identifiable health information on our servers.</p>
+      </div>
+
+      <h2>1. What We Collect</h2>
+      <p>We collect only what is necessary to operate the app:</p>
+      <ul>
+        <li><strong>App preferences</strong> — diabetes type, insulin use, carb targets, and reminder settings are stored locally on your device using secure on-device storage. They are never uploaded to our servers.</li>
+        <li><strong>Usage events</strong> — anonymous, non-identifiable events (e.g., "restaurant viewed", "meal logged") to help us improve the app. No personal information is attached.</li>
+        <li><strong>AI Assistant messages</strong> — text questions you send to the AI Assistant are transmitted to OpenAI to generate a response. They are not stored by DiabEats after the session ends.</li>
+        <li><strong>Menu scan images</strong> — photos you submit through the Scan Menu feature are transmitted to OpenAI's vision API to identify and analyse menu items. Images are not stored by DiabEats after the analysis is returned.</li>
+        <li><strong>Subscription status</strong> — managed by RevenueCat. We receive a subscriber ID but never your payment details.</li>
+      </ul>
+
+      <h2>2. What We Do Not Collect</h2>
+      <ul>
+        <li>Your name, email address, or any contact information</li>
+        <li>Precise GPS location (we request approximate location only for nearby restaurant suggestions, and this is never stored)</li>
+        <li>Photos or camera images beyond on-device processing for the menu scanner</li>
+        <li>Health records, blood glucose readings, or medical history</li>
+      </ul>
+
+      <h2>3. How We Use Your Information</h2>
+      <p>Anonymous usage data is used solely to:</p>
+      <ul>
+        <li>Understand which features are most helpful</li>
+        <li>Fix bugs and improve app performance</li>
+        <li>Prioritize new restaurant and menu additions</li>
+      </ul>
+      <p>We do not sell, rent, or share any data with advertisers or third-party marketers.</p>
+
+      <h2>4. Third-Party Services</h2>
+      <p>DiabEats uses the following third-party services, each with their own privacy policies:</p>
+      <ul>
+        <li><strong>OpenAI</strong> — powers the AI Assistant and Scan Menu feature. Text questions, menu photos, and your dietary preferences (e.g., diabetes type, carb targets) are sent to OpenAI solely to generate personalised nutrition guidance. No name, Apple ID, or health records are included. Data is processed under <a href="https://openai.com/policies/privacy-policy" target="_blank">OpenAI's privacy policy</a>. User consent is obtained in-app before any data is transmitted.</li>
+        <li><strong>RevenueCat</strong> — manages in-app subscriptions per <a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat's privacy policy</a>.</li>
+        <li><strong>Apple / Google</strong> — push notification tokens are managed by Apple (APNs) and Google (FCM) for daily reminders.</li>
+      </ul>
+
+      <h2>5. Data Retention</h2>
+      <p>Your health preferences live entirely on your device and are deleted when you uninstall the app. Anonymous usage events are retained for up to 12 months for analytics, then deleted.</p>
+
+      <h2>6. Children's Privacy</h2>
+      <p>DiabEats is not intended for use by children under 13. We do not knowingly collect information from children.</p>
+
+      <h2>7. Your Rights</h2>
+      <p>Because we do not collect personally identifiable information, there is no personal profile to access, correct, or delete. If you have questions, contact us at the address below.</p>
+
+      <h2>8. Changes to This Policy</h2>
+      <p>We may update this policy occasionally. Significant changes will be communicated via an in-app notice. Continued use of DiabEats after changes constitutes acceptance of the updated policy.</p>
+
+      <h2>9. Contact</h2>
+      <p>Questions or concerns about this privacy policy? Email us at <a href="mailto:support@diabeatsapp.com">support@diabeatsapp.com</a>.</p>
+    </main>
+
+    <footer>
+      &copy; 2026 DiabEats &mdash; <a href="/">Home</a>
+    </footer>
+  </body>
+</html>

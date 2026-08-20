@@ -1,0 +1,4 @@
+- [Mobile navigation stability](mobile-navigation-stability.md) — use the stable Expo Router tabs for DiabEats; the experimental liquid-glass native tabs caused mobile runtime instability.
+- [Post-merge dependency recovery](post-merge-dependency-recovery.md) — keep the safe shell-quote override so deterministic post-merge installs pass the package firewall.
+- [BioTrace data integrity](biotrace-data-integrity.md) — reconstruct barcode-backed ratings server-side and never persist label photos.
+- [Expo security maintenance](expo-54-dependency-compatibility.md) — Expo SDK upgrades require release-sized validation; current vendor audit exceptions are explicit and time-bounded.

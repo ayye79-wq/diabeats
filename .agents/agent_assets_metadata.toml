@@ -1,0 +1,134 @@
+uploads = []
+
+[[generated]]
+id = "_0Ld6WJbhd_8ZsaYlibog"
+uri = "file://attached_assets/generated_images/diabeats_tiktok_logo.png"
+type = "image"
+title = "DiabEats TikTok logo"
+
+[[generated]]
+id = "31sH0EzB2WkLDuND87dko"
+uri = "file://attached_assets/generated_images/diabeats_facebook_cover.png"
+type = "image"
+title = "DiabEats Facebook cover no icon"
+
+[[generated]]
+id = "z1RVOB94GtbRDrcEfN9XJ"
+uri = "file://attached_assets/generated_images/diabeats_talking_video_poster.png"
+type = "image"
+title = "DiabEats talking video poster"
+
+[[outputs]]
+id = "Ri9W_NnIm5_Fc5wEYUzt2"
+uri = "file://assets/images/icon.png"
+type = "image"
+title = "DiabEats App Icon"
+
+[[outputs]]
+id = "pbCVszWOSTXJsyeqjQKQa"
+uri = "file://attached_assets/paywall-1024x1024.png"
+type = "image"
+title = "Paywall Screenshot — 1024×1024"
+
+[[outputs]]
+id = "_4T1AH28pIoVJhLYqxuNO"
+uri = "file://attached_assets/diabeats-premium-1024x1024.png"
+type = "image"
+title = "DiabEats Premium Subscription Image — 1024×1024"
+
+[[outputs]]
+id = "SK4f1Mgaoljs3HNltJXha"
+uri = "file://attached_assets/generated_images/diabeats_tiktok_logo.png"
+type = "image"
+title = "DiabEats TikTok Logo"
+
+[[outputs]]
+id = "HbQ1ePoQu20-zmJte_Mga"
+uri = "file://attached_assets/generated_images/diabeats_facebook_cover.png"
+type = "image"
+title = "DiabEats Facebook Cover Photo"
+
+[[outputs]]
+id = "5CMadvPGKem68EXlSIMnu"
+uri = "file://attached_assets/generated_images/diabeats_talking_video_poster.png"
+type = "image"
+title = "DiabEats Talking Video Poster"
+
+[[outputs]]
+id = "IkocsIe7y5Mp6jnQRJfYd"
+uri = "file://attached_assets/diabeats_play_icon_512.png"
+type = "image"
+title = "App Icon (512x512) — Upload this to Google Play"
+
+[[outputs]]
+id = "C0JGyo7xNJ7J_wNorDn0s"
+uri = "file://attached_assets/diabeats_feature_graphic_1024x500.png"
+type = "image"
+title = "Feature Graphic (1024x500) — Upload this to Google Play"
+
+[[outputs]]
+id = "9coTJFzRkUmFZykkAlbhZ"
+uri = "file://attached_assets/tablet_diabeats_screenshot_1_blood_sugar_impact_1284x2778_1776514889063.png"
+type = "image"
+title = "Tablet Screenshot 1 — Blood Sugar Impact"
+
+[[outputs]]
+id = "5zlFkEYfqcy2KAbsGBKno"
+uri = "file://attached_assets/tablet_diabeats_screenshot_2_find_smart_meals_1284x2778_1776514903856.png"
+type = "image"
+title = "Tablet Screenshot 2 — Find Smart Meals"
+
+[[outputs]]
+id = "b0XvMXmjwP2-uj6J7s4V8"
+uri = "file://attached_assets/tablet_diabeats_screenshot_3_ask_ai_for_guidance_1284x2778_1776514916395.png"
+type = "image"
+title = "Tablet Screenshot 3 — Ask AI for Guidance"
+
+[[outputs]]
+id = "I4Schgm7VJLGjeqlKSoDy"
+uri = "file://attached_assets/tablet_IMG_2771_1776514933251.png"
+type = "image"
+title = "Tablet Screenshot 4 — AI Assistant"
+
+[[outputs]]
+id = "L2QoVwrDZ9OclkqVLI0eA"
+uri = "file://attached_assets/tablet_IMG_2770_1776514946842.png"
+type = "image"
+title = "Tablet Screenshot 5 — Menu Scanner"
+
+[[outputs]]
+id = "qS7IMUsP_BfqTu-U1IDLH"
+uri = "file://attached_assets/tablet10_diabeats_screenshot_1_blood_sugar_impact_1284x2778_1776514889063.png"
+type = "image"
+title = "10-inch Screenshot 1 — Blood Sugar Impact"
+
+[[outputs]]
+id = "LSurS4kaOP8659FGD4LCw"
+uri = "file://attached_assets/tablet10_diabeats_screenshot_2_find_smart_meals_1284x2778_1776514903856.png"
+type = "image"
+title = "10-inch Screenshot 2 — Find Smart Meals"
+
+[[outputs]]
+id = "FIGT-4oKMYQNCviZk6x3Z"
+uri = "file://attached_assets/tablet10_diabeats_screenshot_3_ask_ai_for_guidance_1284x2778_1776514916395.png"
+type = "image"
+title = "10-inch Screenshot 3 — Ask AI for Guidance"
+
+[[outputs]]
+id = "IBO30tqWseeUsyg3Fm5wR"
+uri = "file://attached_assets/tablet10_IMG_2771_1776514933251.png"
+type = "image"
+title = "10-inch Screenshot 4 — AI Assistant"
+
+[[outputs]]
+id = "Q8A8nsloRfqcrSnNFK4aC"
+uri = "file://attached_assets/tablet10_IMG_2770_1776514946842.png"
+type = "image"
+title = "10-inch Screenshot 5 — Menu Scanner"
+
+[[outputs]]
+id = "b71Zp5_uvWXk7XBNuwBgI"
+uri = "file://diabeats-project.zip"
+type = "unspecified"
+title = "DiabEats project ZIP"
+description = "Project source archive. Dependencies, Git metadata, and cache files were excluded to keep the download manageable."
