@@ -45,3 +45,10 @@ yarn-error.*
 # Local project exports are too large for source control and are retained in Replit.
 ziRumkxT
 diabeats-project.zip
+
+# Generated promotional media and private publishing state
+content-agent/outbox/*.json
+content-agent/outbox/*.mp3
+content-agent/outbox/*.mp4
+content-agent/published/*.json
+content-agent/state.json

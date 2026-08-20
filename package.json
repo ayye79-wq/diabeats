@@ -16,6 +16,10 @@
     "lint:fix": "npx expo lint --fix",
     "test:biotrace": "tsx --test tests/biotrace-rating.test.ts tests/image-size-parser.test.ts",
     "security:health": "node scripts/security-health.js"
+    ,"content:generate": "tsx content-agent/run.ts generate"
+    ,"content:approve": "tsx content-agent/run.ts approve"
+    ,"content:publish": "tsx content-agent/run.ts publish"
+    ,"test:content-agent": "tsx --test content-agent/*.test.ts"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.0",
