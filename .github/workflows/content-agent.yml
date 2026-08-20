@@ -1,0 +1,45 @@
+name: DiabEats Content Agent
+
+on:
+  schedule:
+    # 8 AM and 7 PM America/New_York during daylight time (UTC schedule).
+    - cron: "0 12,23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache/restore@v4
+        with:
+          path: content-agent/state.json
+          key: content-agent-state-${{ github.run_id }}
+          restore-keys: content-agent-state-
+      - run: npm run test:content-agent
+      - run: npm run content:generate
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diabeats-content-${{ github.run_id }}
+          path: |
+            content-agent/outbox/*.json
+            content-agent/outbox/*.mp3
+            content-agent/outbox/*.mp4
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: content-agent/state.json
+          key: content-agent-state-${{ github.run_id }}
