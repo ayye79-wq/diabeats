@@ -1,0 +1,366 @@
+From 751b7444b06434f801fbbb3aab670363ca8f2dad Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Thu, 20 Aug 2026 12:32:22 -0400
+Subject: [PATCH] Add approval-first DiabEats content agent
+
+---
+ .github/workflows/content-agent.yml | 45 ++++++++++++++++++++++++++++
+ .gitignore                          |  7 +++++
+ content-agent/README.md             | 23 +++++++++++++++
+ content-agent/generator.ts          | 42 ++++++++++++++++++++++++++
+ content-agent/run.ts                | 46 +++++++++++++++++++++++++++++
+ content-agent/safety.test.ts        | 10 +++++++
+ content-agent/safety.ts             | 26 ++++++++++++++++
+ content-agent/tiktok.ts             | 20 +++++++++++++
+ content-agent/types.ts              | 17 +++++++++++
+ content-agent/video.ts              | 23 +++++++++++++++
+ package.json                        |  4 +++
+ 11 files changed, 263 insertions(+)
+ create mode 100644 .github/workflows/content-agent.yml
+ create mode 100644 content-agent/README.md
+ create mode 100644 content-agent/generator.ts
+ create mode 100644 content-agent/run.ts
+ create mode 100644 content-agent/safety.test.ts
+ create mode 100644 content-agent/safety.ts
+ create mode 100644 content-agent/tiktok.ts
+ create mode 100644 content-agent/types.ts
+ create mode 100644 content-agent/video.ts
+
+diff --git a/.github/workflows/content-agent.yml b/.github/workflows/content-agent.yml
+new file mode 100644
+index 0000000..76e22ac
+--- /dev/null
++++ b/.github/workflows/content-agent.yml
+@@ -0,0 +1,45 @@
++name: DiabEats Content Agent
++
++on:
++  schedule:
++    # 8 AM and 7 PM America/New_York during daylight time (UTC schedule).
++    - cron: "0 12,23 * * *"
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++jobs:
++  generate:
++    runs-on: ubuntu-latest
++    timeout-minutes: 10
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with:
++          node-version: 22
++          cache: npm
++      - run: npm ci
++      - uses: actions/cache/restore@v4
++        with:
++          path: content-agent/state.json
++          key: content-agent-state-${{ github.run_id }}
++          restore-keys: content-agent-state-
++      - run: npm run test:content-agent
++      - run: npm run content:generate
++        env:
++          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
++      - uses: actions/upload-artifact@v4
++        with:
++          name: diabeats-content-${{ github.run_id }}
++          path: |
++            content-agent/outbox/*.json
++            content-agent/outbox/*.mp3
++            content-agent/outbox/*.mp4
++          retention-days: 14
++          if-no-files-found: error
++      - uses: actions/cache/save@v4
++        if: always()
++        with:
++          path: content-agent/state.json
++          key: content-agent-state-${{ github.run_id }}
+diff --git a/.gitignore b/.gitignore
+index d47f6ec..7752775 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -45,3 +45,10 @@ yarn-error.*
+ # Local project exports are too large for source control and are retained in Replit.
+ ziRumkxT
+ diabeats-project.zip
++
++# Generated promotional media and private publishing state
++content-agent/outbox/*.json
++content-agent/outbox/*.mp3
++content-agent/outbox/*.mp4
++content-agent/published/*.json
++content-agent/state.json
+diff --git a/content-agent/README.md b/content-agent/README.md
+new file mode 100644
+index 0000000..b2e75d6
+--- /dev/null
++++ b/content-agent/README.md
+@@ -0,0 +1,23 @@
++# DiabEats Content Agent
++
++The agent creates two medically cautious TikTok content packages per day. It is approval-first: scheduled runs generate drafts, but never publish them.
++
++## GitHub setup
++
++1. Add the repository secret `OPENAI_API_KEY`.
++2. Run **Actions â†’ DiabEats Content Agent â†’ Run workflow** once.
++3. Download the generated JSON artifact and review it.
++
++## TikTok connection
++
++Register an app in TikTok for Developers, add the Content Posting API, request the `video.upload` scope, and authorize the DiabEats account. Set `TIKTOK_ACCESS_TOKEN` only in the deployment secret managerâ€”never in Git. The current publisher sends an approved MP4 to the TikTok inbox, where the owner reviews and completes the post. This deliberately avoids unattended public posting.
++
++TikTok requires explicit creator consent and an audited client for unrestricted public Direct Post. See the official Content Posting API documentation before enabling automatic publication.
++
++## Commands
++
++- `npm run content:generate`
++- `npm run content:approve -- <content-id>`
++- `npm run content:publish -- <content-id>`
++
++Generated media, queue state, and publishing records are excluded from Git.
+diff --git a/content-agent/generator.ts b/content-agent/generator.ts
+new file mode 100644
+index 0000000..b158d75
+--- /dev/null
++++ b/content-agent/generator.ts
+@@ -0,0 +1,42 @@
++import OpenAI from "openai";
++import { writeFile } from "node:fs/promises";
++import { z } from "zod";
++import { CONTENT_DISCLAIMER, validateContent } from "./safety";
++import type { ContentPackage } from "./types";
++
++const draftSchema = z.object({
++  topic: z.string().min(3).max(100),
++  hook: z.string().min(5).max(150),
++  voiceover: z.string().min(40).max(900),
++  scenes: z.array(z.object({ seconds: z.number().int().min(2).max(8), onScreenText: z.string().max(90), visual: z.string().max(180) })).min(3).max(7),
++  caption: z.string().min(10).max(1200),
++  hashtags: z.array(z.string().regex(/^#[A-Za-z0-9_]+$/)).min(2).max(8),
++  callToAction: z.string().min(3).max(160),
++}).strict();
++
++export async function generateContent(previousTopics: string[]): Promise<ContentPackage> {
++  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
++  const response = await client.responses.create({
++    model: process.env.CONTENT_AGENT_MODEL || "gpt-5-mini",
++    input: `Create one 20â€“35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, or call food diabetic-safe. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}. Return JSON only with topic, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction.`,
++  });
++  const raw = response.output_text.replace(/```json\s*|```/g, "").trim();
++  const draft = draftSchema.parse(JSON.parse(raw));
++  const now = new Date();
++  const content: ContentPackage = {
++    ...draft,
++    id: `${now.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${Math.random().toString(36).slice(2, 7)}`,
++    createdAt: now.toISOString(),
++    status: "draft",
++    disclaimer: CONTENT_DISCLAIMER,
++  };
++  const errors = validateContent(content);
++  if (errors.length) throw new Error(`Content safety check failed: ${errors.join("; ")}`);
++  return content;
++}
++
++export async function createVoiceover(text: string, destination: string) {
++  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
++  const audio = await client.audio.speech.create({ model: "gpt-4o-mini-tts", voice: process.env.CONTENT_AGENT_VOICE || "coral", input: text });
++  await writeFile(destination, Buffer.from(await audio.arrayBuffer()));
++}
+diff --git a/content-agent/run.ts b/content-agent/run.ts
+new file mode 100644
+index 0000000..2ad7f9b
+--- /dev/null
++++ b/content-agent/run.ts
+@@ -0,0 +1,46 @@
++import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
++import path from "node:path";
++import { createVoiceover, generateContent } from "./generator";
++import { validateContent } from "./safety";
++import { uploadTikTokDraft } from "./tiktok";
++import type { ContentPackage } from "./types";
++import { renderVerticalVideo } from "./video";
++
++const root = path.resolve("content-agent");
++const outbox = path.join(root, "outbox");
++const published = path.join(root, "published");
++const stateFile = path.join(root, "state.json");
++await Promise.all([mkdir(outbox, { recursive: true }), mkdir(published, { recursive: true })]);
++
++async function state(): Promise<{ recentTopics: string[] }> {
++  try { return JSON.parse(await readFile(stateFile, "utf8")); } catch { return { recentTopics: [] }; }
++}
++async function load(id: string) { return JSON.parse(await readFile(path.join(outbox, `${id}.json`), "utf8")) as ContentPackage; }
++async function save(item: ContentPackage) { await writeFile(path.join(outbox, `${item.id}.json`), JSON.stringify(item, null, 2)); }
++
++const [command, id] = process.argv.slice(2);
++if (command === "generate") {
++  const s = await state();
++  const item = await generateContent(s.recentTopics);
++  const audioPath = path.join(outbox, `${item.id}.mp3`);
++  const videoPath = path.join(outbox, `${item.id}.mp4`);
++  await createVoiceover(item.voiceover, audioPath);
++  await renderVerticalVideo(audioPath, videoPath, item.hook, item.callToAction);
++  item.videoPath = videoPath;
++  await save(item);
++  await writeFile(stateFile, JSON.stringify({ recentTopics: [item.topic, ...s.recentTopics].slice(0, 30) }, null, 2));
++  console.log(JSON.stringify({ id: item.id, status: item.status, topic: item.topic }));
++} else if (command === "approve" && id) {
++  const item = await load(id); item.status = "approved"; await save(item); console.log(`Approved ${id}`);
++} else if (command === "publish" && id) {
++  const item = await load(id);
++  if (item.status !== "approved") throw new Error("Content must be approved before upload");
++  const errors = validateContent(item); if (errors.length) throw new Error(errors.join("; "));
++  if (!item.videoPath) throw new Error("Approved package has no videoPath");
++  item.publishId = await uploadTikTokDraft(item.videoPath); item.status = "published";
++  await writeFile(path.join(published, `${id}.json`), JSON.stringify(item, null, 2));
++  await rename(path.join(outbox, `${id}.json`), path.join(outbox, `${id}.published.json`)).catch(() => undefined);
++  console.log(`Uploaded ${id} to TikTok inbox as ${item.publishId}`);
++} else {
++  throw new Error("Usage: npm run content:generate | npm run content:approve -- <id> | npm run content:publish -- <id>");
++}
+diff --git a/content-agent/safety.test.ts b/content-agent/safety.test.ts
+new file mode 100644
+index 0000000..d7e6f28
+--- /dev/null
++++ b/content-agent/safety.test.ts
+@@ -0,0 +1,10 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { CONTENT_DISCLAIMER, validateContent } from "./safety";
++import type { ContentPackage } from "./types";
++
++const safe: ContentPackage = { id: "x", createdAt: new Date().toISOString(), status: "draft", topic: "fiber", hook: "Try this ordering question", voiceover: "Restaurant nutrition varies. Compare fiber and total carbohydrate information, verify the portion, and use your own care plan.", scenes: [{ seconds: 5, onScreenText: "Check the portion", visual: "menu" }, { seconds: 5, onScreenText: "Compare nutrients", visual: "labels" }, { seconds: 5, onScreenText: "Verify", visual: "DiabEats app" }], caption: "Make a more informed food choice.", hashtags: ["#DiabEats", "#DiabetesEducation"], disclaimer: CONTENT_DISCLAIMER, callToAction: "Explore options in DiabEats" };
++
++test("accepts cautious educational content", () => assert.deepEqual(validateContent(safe), []));
++test("rejects cure claims", () => assert.ok(validateContent({ ...safe, caption: "This cures diabetes" }).length > 0));
++test("rejects medication instructions", () => assert.ok(validateContent({ ...safe, voiceover: "Stop taking insulin before this meal" }).length > 0));
+diff --git a/content-agent/safety.ts b/content-agent/safety.ts
+new file mode 100644
+index 0000000..0bed942
+--- /dev/null
++++ b/content-agent/safety.ts
+@@ -0,0 +1,26 @@
++import { containsUnsafeMedicalAdvice } from "../shared/ai-safety";
++import type { ContentPackage } from "./types";
++
++export const CONTENT_DISCLAIMER =
++  "General education onlyâ€”not medical advice. Individual glucose responses vary; verify nutrition and follow your care plan.";
++
++const prohibited = [
++  /cure(?:s|d)? diabetes/i,
++  /reverse(?:s|d)? diabetes/i,
++  /guaranteed/i,
++  /no (?:glucose|blood sugar) spike/i,
++  /diabetic[- ]safe/i,
++  /stop (?:taking )?(?:insulin|medication)/i,
++];
++
++export function validateContent(content: ContentPackage): string[] {
++  const text = [content.hook, content.voiceover, content.caption, content.callToAction].join(" ");
++  const errors: string[] = [];
++  if (containsUnsafeMedicalAdvice(text)) errors.push("Contains individualized or certain medical advice");
++  for (const pattern of prohibited) if (pattern.test(text)) errors.push(`Prohibited claim: ${pattern.source}`);
++  if (content.voiceover.length > 900) errors.push("Voiceover is too long for a short video");
++  if (content.scenes.length < 3 || content.scenes.length > 7) errors.push("Use 3â€“7 scenes");
++  if (!content.disclaimer.toLowerCase().includes("not medical advice")) errors.push("Missing medical disclaimer");
++  if (content.hashtags.length > 8) errors.push("Use no more than eight hashtags");
++  return errors;
++}
+diff --git a/content-agent/tiktok.ts b/content-agent/tiktok.ts
+new file mode 100644
+index 0000000..3b602d0
+--- /dev/null
++++ b/content-agent/tiktok.ts
+@@ -0,0 +1,20 @@
++import { readFile } from "node:fs/promises";
++
++const API = "https://open.tiktokapis.com";
++
++export async function uploadTikTokDraft(videoPath: string) {
++  const token = process.env.TIKTOK_ACCESS_TOKEN;
++  if (!token) throw new Error("TIKTOK_ACCESS_TOKEN is not configured");
++  const bytes = await readFile(videoPath);
++  const init = await fetch(`${API}/v2/post/publish/inbox/video/init/`, {
++    method: "POST",
++    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" },
++    body: JSON.stringify({ source_info: { source: "FILE_UPLOAD", video_size: bytes.length, chunk_size: bytes.length, total_chunk_count: 1 } }),
++  });
++  if (!init.ok) throw new Error(`TikTok initialization failed (${init.status}): ${await init.text()}`);
++  const payload = await init.json() as { data?: { publish_id?: string; upload_url?: string }; error?: { message?: string } };
++  if (!payload.data?.upload_url || !payload.data.publish_id) throw new Error(payload.error?.message || "TikTok did not return an upload URL");
++  const uploaded = await fetch(payload.data.upload_url, { method: "PUT", headers: { "Content-Type": "video/mp4", "Content-Length": String(bytes.length), "Content-Range": `bytes 0-${bytes.length - 1}/${bytes.length}` }, body: bytes });
++  if (!uploaded.ok) throw new Error(`TikTok upload failed (${uploaded.status}): ${await uploaded.text()}`);
++  return payload.data.publish_id;
++}
+diff --git a/content-agent/types.ts b/content-agent/types.ts
+new file mode 100644
+index 0000000..3f8b613
+--- /dev/null
++++ b/content-agent/types.ts
+@@ -0,0 +1,17 @@
++export type ContentStatus = "draft" | "approved" | "published" | "rejected";
++
++export interface ContentPackage {
++  id: string;
++  createdAt: string;
++  status: ContentStatus;
++  topic: string;
++  hook: string;
++  voiceover: string;
++  scenes: Array<{ seconds: number; onScreenText: string; visual: string }>;
++  caption: string;
++  hashtags: string[];
++  disclaimer: string;
++  callToAction: string;
++  videoPath?: string;
++  publishId?: string;
++}
+diff --git a/content-agent/video.ts b/content-agent/video.ts
+new file mode 100644
+index 0000000..e720e1d
+--- /dev/null
++++ b/content-agent/video.ts
+@@ -0,0 +1,23 @@
++import { spawn } from "node:child_process";
++
++function escapeDrawtext(value: string) {
++  return value.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'").replace(/%/g, "\\%").replace(/\n/g, " ");
++}
++
++export async function renderVerticalVideo(audioPath: string, destination: string, hook: string, callToAction: string) {
++  const headline = escapeDrawtext(hook);
++  const cta = escapeDrawtext(callToAction);
++  const filter = [
++    "drawbox=x=70:y=190:w=940:h=1500:color=0x071A2B@0.94:t=fill",
++    "drawbox=x=70:y=190:w=18:h=1500:color=0x35C6A5:t=fill",
++    `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='DIABEATS':fontcolor=0x35C6A5:fontsize=74:x=130:y=275`,
++    `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='${headline}':fontcolor=white:fontsize=58:x=130:y=500:box=0:line_spacing=18`,
++    `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='${cta}':fontcolor=0xDCEBE8:fontsize=40:x=130:y=1430`,
++    "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='Education only â€¢ Individual responses vary':fontcolor=0x91AAA5:fontsize=25:x=130:y=1570",
++  ].join(",");
++  await new Promise<void>((resolve, reject) => {
++    const child = spawn("ffmpeg", ["-y", "-f", "lavfi", "-i", "color=c=0x0E3852:s=1080x1920:r=30", "-i", audioPath, "-vf", filter, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", destination], { stdio: "inherit" });
++    child.on("error", reject);
++    child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited with ${code}`)));
++  });
++}
+diff --git a/package.json b/package.json
+index ff04555..500add6 100644
+--- a/package.json
++++ b/package.json
+@@ -16,6 +16,10 @@
+     "lint:fix": "npx expo lint --fix",
+     "test:biotrace": "tsx --test tests/biotrace-rating.test.ts tests/image-size-parser.test.ts",
+     "security:health": "node scripts/security-health.js"
++    ,"content:generate": "tsx content-agent/run.ts generate"
++    ,"content:approve": "tsx content-agent/run.ts approve"
++    ,"content:publish": "tsx content-agent/run.ts publish"
++    ,"test:content-agent": "tsx --test content-agent/*.test.ts"
+   },
+   "dependencies": {
+     "@expo-google-fonts/inter": "^0.4.0",
+-- 
+2.51.1
