@@ -27,7 +27,7 @@ async function main(): Promise<void> {
     const audioPath = path.join(outbox, `${item.id}.mp3`);
     const videoPath = path.join(outbox, `${item.id}.mp4`);
     await createVoiceover(item.voiceover, audioPath);
-    await renderVerticalVideo(audioPath, videoPath, item.hook, item.callToAction);
+    await renderVerticalVideo(audioPath, videoPath, item);
     item.videoPath = videoPath;
     await save(item);
     await writeFile(stateFile, JSON.stringify({ recentTopics: [item.topic, ...s.recentTopics].slice(0, 30) }, null, 2));
