@@ -4,7 +4,10 @@ import {
   buildVideoComposition,
   calculateSlideTimings,
   escapeDrawtext,
+  limitOpeningHook,
+  MAX_OPENING_HOOK_CHARACTERS,
   toAsciiSafeText,
+  wrapOpeningHook,
   wrapOverlayText,
 } from "./video";
 
@@ -36,6 +39,19 @@ test("wraps overlay copy within short, bounded lines", () => {
   assert.ok(lines.at(-1)?.endsWith("..."));
 });
 
+test("limits an opening hook without adding an ellipsis", () => {
+  const hook = limitOpeningHook("Compare this menu before you decide what to order for dinner tonight with friends");
+
+  assert.ok(hook.length <= MAX_OPENING_HOOK_CHARACTERS);
+  assert.equal(hook.endsWith("..."), false);
+});
+test("never inserts ellipses when wrapping a long opening-hook token", () => {
+  const lines = wrapOpeningHook("ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABC...");
+
+  assert.ok(lines.every((line) => line.length <= 29));
+  assert.equal(lines.join(" ").includes("..."), false);
+});
+
 test("calculates slide timing with fade overlaps and preserves audio coverage", () => {
   const timings = calculateSlideTimings(scenes, 18);
 
@@ -60,16 +76,16 @@ test("builds a multi-slide ASCII-only composition with fades, progress, and a fi
   assert.equal((composition.filter.match(/xfade=transition=fade/g) || []).length, 2);
   assert.match(composition.filter, /BARCODE/);
   assert.match(composition.filter, /MENU/);
-  assert.match(composition.filter, /FOOD/);
+  assert.match(composition.filter, /\[ MEAL \]/);
   assert.match(composition.filter, /1\/3/);
   assert.match(composition.filter, /General education only - not medical advice/);
   assert.match(composition.filter, /apad,atrim=duration=18.000\[audio\]/);
   assert.equal(/[^\x20-\x7E]/.test(composition.filter), false);
 });
 
-test("allocates menu, barcode, and food motifs even when visuals use the same keyword", () => {
+test("uses scene-appropriate menu, barcode, and meal icon treatments", () => {
   const composition = buildVideoComposition(
-    scenes.map((scene) => ({ ...scene, visual: "Restaurant menu" })),
+    scenes,
     "Compare the menu before you order",
     "Explore DiabEats",
     "General education only - not medical advice.",
@@ -77,5 +93,5 @@ test("allocates menu, barcode, and food motifs even when visuals use the same ke
 
   assert.match(composition.filter, /MENU/);
   assert.match(composition.filter, /BARCODE/);
-  assert.match(composition.filter, /FOOD/);
+  assert.match(composition.filter, /\[ MEAL \]/);
 });

@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { writeFile } from "node:fs/promises";
 import { z } from "zod";
+import { APPROVED_FEATURE_IDS, approvedFeatureClaimsFor, approvedFeatureManifestForPrompt } from "./feature-manifest";
 import { CONTENT_DISCLAIMER, validateContent } from "./safety";
 import type { ContentPackage } from "./types";
 
@@ -9,7 +10,8 @@ const MAX_DRAFT_ATTEMPTS = 3;
 
 const draftSchema = z.object({
   topic: z.string().min(3).max(100),
-  hook: z.string().min(5).max(150),
+  featureIds: z.array(z.enum(APPROVED_FEATURE_IDS)).min(1).max(3).refine((ids) => new Set(ids).size === ids.length, "Feature IDs must be unique"),
+  hook: z.string().min(5).max(55),
   voiceover: z.string().min(40).max(900),
   scenes: z.array(z.object({ seconds: z.number().int().min(2).max(8), onScreenText: z.string().max(90), visual: z.string().max(MAX_VISUAL_DESCRIPTION_LENGTH) })).min(3).max(7),
   caption: z.string().min(10).max(1200),
@@ -43,6 +45,7 @@ function createContentPackage(raw: string): ContentPackage {
   const now = new Date();
   const content: ContentPackage = {
     ...draft,
+    featureClaims: approvedFeatureClaimsFor(draft.featureIds),
     id: `${now.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${Math.random().toString(36).slice(2, 7)}`,
     createdAt: now.toISOString(),
     status: "draft",
@@ -53,11 +56,16 @@ function createContentPackage(raw: string): ContentPackage {
   return content;
 }
 
-function generationPrompt(previousTopics: string[], retrying = false) {
+export function generationPrompt(previousTopics: string[], retrying = false) {
   const retryInstruction = retrying
     ? "Your previous draft did not meet the required JSON format or safety rules. Regenerate from scratch and follow every constraint exactly. "
     : "";
-  return `${retryInstruction}Create one 20â€“35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, use cure/reversal/guarantee language, claim food is diabetic-safe, or give medication instructions. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}. Return JSON only with topic, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction. Each scene visual must be a concise production note of 180 characters or fewer.`;
+  return `${retryInstruction}Create one 20-35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, use cure/reversal/guarantee language, claim food is diabetic-safe, or give medication instructions. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}.
+
+The app capabilities you may advertise are restricted to this approved manifest. Select one to three featureIds from it. Do not make any DiabEats capability claim in the hook, voiceover, on-screen text, caption, or CTA; the approved canonical claims are derived separately from selected featureIds. Do not paraphrase, imply, or advertise any other DiabEats workflow.
+${approvedFeatureManifestForPrompt()}
+
+Never claim portion sliders, pinned meal-specific carb targets, restaurant-PDF opening, glucose prediction, or any unsupported workflow. The hook must be 55 characters or fewer. Return JSON only with topic, featureIds, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction. Each scene visual must be a concise production note of 180 characters or fewer.`;
 }
 
 export async function generateContent(previousTopics: string[]): Promise<ContentPackage> {

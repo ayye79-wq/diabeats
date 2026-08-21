@@ -5,6 +5,7 @@ const FRAME_RATE = 30;
 const TRANSITION_SECONDS = 0.35;
 const SAFE_LEFT = 100;
 const SAFE_WIDTH = 880;
+export const MAX_OPENING_HOOK_CHARACTERS = 55;
 const FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 const FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 const SLIDE_COLORS = ["0x0E3852", "0x123D4A", "0x28365A", "0x22443D", "0x3D3155", "0x17364A", "0x37402A"];
@@ -76,6 +77,40 @@ export function wrapOverlayText(value: string, maxCharacters: number, maxLines: 
   return lines.slice(0, maxLines);
 }
 
+export function limitOpeningHook(value: string) {
+  const clean = toAsciiSafeText(value).replace(/\n/g, " ").replace(/\.{3,}/g, "").trim();
+  if (clean.length <= MAX_OPENING_HOOK_CHARACTERS) return clean;
+  const clipped = clean.slice(0, MAX_OPENING_HOOK_CHARACTERS).trimEnd();
+  const wordBoundary = clipped.lastIndexOf(" ");
+  return wordBoundary >= 20 ? clipped.slice(0, wordBoundary) : clipped;
+}
+
+export function wrapOpeningHook(value: string) {
+  const words = limitOpeningHook(value).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (word.length > 29) {
+      if (current) lines.push(current);
+      for (let index = 0; index < word.length && lines.length < 3; index += 29) {
+        lines.push(word.slice(index, index + 29));
+      }
+      current = "";
+      continue;
+    }
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= 29) {
+      current = candidate;
+      continue;
+    }
+    if (current) lines.push(current);
+    current = word;
+  }
+  if (current && lines.length < 3) lines.push(current);
+  return lines.slice(0, 3);
+}
+
 export function escapeDrawtext(value: string) {
   return toAsciiSafeText(value)
     .replace(/\\/g, "\\\\")
@@ -132,49 +167,39 @@ function preferredVisualKind(visual: string): VisualKind {
   return "food";
 }
 
-function assignVisualKinds(scenes: VideoScene[]) {
-  const remaining = new Set<VisualKind>(["menu", "barcode", "food"]);
-  return scenes.map((scene) => {
-    const preferred = preferredVisualKind(scene.visual);
-    const kind = remaining.has(preferred) ? preferred : (remaining.values().next().value ?? preferred);
-    remaining.delete(kind);
-    return kind;
-  });
-}
-
 function sceneVisualFilters(kind: VisualKind, timing: SlideTiming) {
   const enable = enabledBetween(timing.start, timing.end);
   const common = [
-    `drawbox=x=700:y=250:w=280:h=300:color=0x071A2B@0.42:t=fill:${enable}`,
-    `drawbox=x=700:y=250:w=280:h=300:color=0x35C6A5@0.55:t=2:${enable}`,
+    `drawbox=x=130:y=330:w=820:h=540:color=0x071A2B@0.42:t=fill:${enable}`,
+    `drawbox=x=130:y=330:w=820:h=540:color=0x35C6A5@0.55:t=3:${enable}`,
   ];
 
   if (kind === "barcode") {
     return [
       ...common,
-      `drawtext=fontfile=${FONT_BOLD}:text='SCAN':fontcolor=0xDCEBE8:fontsize=28:x=780:y=290:${enable}`,
-      ...[0, 18, 42, 60, 92, 115, 145, 171, 205].map((offset, index) =>
-        `drawbox=x=${730 + offset}:y=355:w=${index % 3 === 0 ? 10 : 5}:h=120:color=white@0.9:t=fill:${enable}`),
-      `drawtext=fontfile=${FONT_REGULAR}:text='||| BARCODE |||':fontcolor=0x91AAA5:fontsize=20:x=730:y=495:${enable}`,
+      `drawtext=fontfile=${FONT_BOLD}:text='[ SCAN ]':fontcolor=0xDCEBE8:fontsize=40:x=425:y=405:${enable}`,
+      ...[0, 30, 68, 96, 145, 180, 228, 270, 318, 350, 410, 446].map((offset, index) =>
+        `drawbox=x=${310 + offset}:y=500:w=${index % 3 === 0 ? 16 : 8}:h=220:color=white@0.9:t=fill:${enable}`),
+      `drawtext=fontfile=${FONT_REGULAR}:text='BARCODE':fontcolor=0x91AAA5:fontsize=28:x=430:y=770:${enable}`,
     ];
   }
 
   if (kind === "menu") {
     return [
       ...common,
-      `drawtext=fontfile=${FONT_BOLD}:text='MENU':fontcolor=0xDCEBE8:fontsize=30:x=785:y=290:${enable}`,
-      ...[0, 1, 2].flatMap((row) => [
-        `drawbox=x=735:y=${355 + row * 45}:w=205:h=9:color=0xDCEBE8@0.85:t=fill:${enable}`,
-        `drawbox=x=735:y=${373 + row * 45}:w=${row === 1 ? 135 : 170}:h=7:color=0x91AAA5@0.75:t=fill:${enable}`,
+      `drawtext=fontfile=${FONT_BOLD}:text='[ MENU ]':fontcolor=0xDCEBE8:fontsize=40:x=415:y=405:${enable}`,
+      ...[0, 1, 2, 3].flatMap((row) => [
+        `drawbox=x=280:y=${500 + row * 58}:w=520:h=12:color=0xDCEBE8@0.85:t=fill:${enable}`,
+        `drawbox=x=280:y=${525 + row * 58}:w=${row % 2 ? 330 : 430}:h=9:color=0x91AAA5@0.75:t=fill:${enable}`,
       ]),
     ];
   }
 
   return [
     ...common,
-    `drawtext=fontfile=${FONT_BOLD}:text='o':fontcolor=0xF7D775:fontsize=210:x=810:y=270:${enable}`,
-    `drawbox=x=760:y=465:w=160:h=8:color=0x35C6A5@0.9:t=fill:${enable}`,
-    `drawtext=fontfile=${FONT_BOLD}:text='FOOD':fontcolor=0xDCEBE8:fontsize=26:x=795:y=500:${enable}`,
+    `drawtext=fontfile=${FONT_BOLD}:text='O':fontcolor=0xF7D775:fontsize=360:x=420:y=405:${enable}`,
+    `drawbox=x=350:y=710:w=380:h=12:color=0x35C6A5@0.9:t=fill:${enable}`,
+    `drawtext=fontfile=${FONT_BOLD}:text='[ MEAL ]':fontcolor=0xDCEBE8:fontsize=34:x=420:y=770:${enable}`,
   ];
 }
 
@@ -196,7 +221,6 @@ export function buildVideoComposition(
 ): VideoComposition {
   const timings = calculateSlideTimings(scenes, audioDuration);
   const totalDuration = timings[timings.length - 1].end;
-  const visualKinds = assignVisualKinds(scenes);
   const filterParts: string[] = [];
   let videoLabel = "[0:v]";
 
@@ -215,11 +239,10 @@ export function buildVideoComposition(
     ...timings.flatMap((timing) => {
       const scene = scenes[timing.index];
       const enable = enabledBetween(timing.start, timing.end);
-      const headline = timing.index === 0 ? hook : scene.onScreenText;
+      const headline = timing.index === 0 ? limitOpeningHook(hook) : scene.onScreenText;
       const filters = [
-        ...sceneVisualFilters(visualKinds[timing.index], timing),
-        ...drawTextLines(wrapOverlayText(headline, 29, 3), FONT_BOLD, "white", 54, SAFE_LEFT, 620, 70, enable),
-        ...drawTextLines(wrapOverlayText(scene.onScreenText, 36, 3), FONT_REGULAR, "0xDCEBE8", 38, SAFE_LEFT, 910, 54, enable),
+        ...sceneVisualFilters(preferredVisualKind(scene.visual), timing),
+        ...drawTextLines(timing.index === 0 ? wrapOpeningHook(headline) : wrapOverlayText(headline, 29, 3), FONT_BOLD, "white", 54, SAFE_LEFT, 960, 70, enable),
         `drawtext=fontfile=${FONT_BOLD}:text='${timing.index + 1}/${timings.length}':fontcolor=0x91AAA5:fontsize=26:x=900:y=190:${enable}`,
       ];
 
