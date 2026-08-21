@@ -28,6 +28,15 @@ test("rejects free-form DiabEats capabilities even when a feature is selected", 
 
   assert.ok(errors.some((error) => error.includes("manifest-derived feature claims")));
 });
+test("rejects unlisted capabilities expressed with new verbs and nouns", () => {
+  const continuousMonitoringErrors = validateContent({ ...safe, caption: "DiabEats provides continuous glucose monitoring." });
+  const coachingErrors = validateContent({ ...safe, caption: "DiabEats provides nutrition coaching." });
+  const appErrors = validateContent({ ...safe, caption: "This app supports meal delivery tracking." });
+
+  assert.ok(continuousMonitoringErrors.some((error) => error.includes("manifest-derived feature claims")));
+  assert.ok(coachingErrors.some((error) => error.includes("manifest-derived feature claims")));
+  assert.ok(appErrors.some((error) => error.includes("manifest-derived feature claims")));
+});
 test("rejects unsupported workflow paraphrases", () => {
   const errors = validateContent({ ...safe, caption: "Adjust the serving amount with a slider." });
 

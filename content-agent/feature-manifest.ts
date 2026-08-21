@@ -76,12 +76,12 @@ const unsupportedFeatureClaims = [
   { label: "glucose prediction", pattern: /\b(?:glucose|blood sugar) (?:prediction|predictor)\b|\b(?:predict|forecast|estimate)(?:s|ing)? (?:your )?(?:glucose|blood sugar)\b/i },
 ] as const;
 
-const freeFormCapabilityPatterns = [
-  /\b(?:DiabEats|this app|the app)\s+(?:lets?|allows?|offers?|has|can|helps?)\b/i,
-  /\buse (?:DiabEats|this app|the app) to\b/i,
-  /\b(?:scan|compare|save|log|set|view|open|predict|forecast)\b[^.!?]{0,80}\bwith (?:DiabEats|this app|the app)\b/i,
-  /\b(?:DiabEats|this app|the app)\b[^.!?]{0,80}\b(?:barcode|menu[- ]?item|favorites?|log(?:ged|ging)? a meal|carb target|comparison|biotrace|data[- ]source|methodology)\b/i,
+const genericBrandCtas = [
+  /^explore (?:more |options )?in diabeats$/i,
+  /^explore diabeats$/i,
 ] as const;
+
+const genericAppCapabilityPattern = /\b(?:this|the|our)\s+(?:app|platform|tool)\s+(?:lets?|allows?|offers?|has|can|helps?|provides?|supports?|includes?|features?)\b/i;
 
 export function isApprovedFeatureId(value: string): value is ApprovedFeatureId {
   return (APPROVED_FEATURE_IDS as readonly string[]).includes(value);
@@ -115,7 +115,10 @@ export function validateFeatureClaims(
       errors.push(`Feature claim must use approved manifest copy: ${expected.featureId}`);
     }
   }
-  if (freeFormCapabilityPatterns.some((pattern) => pattern.test(text))) {
+  const sentences = text.split(/[.!?\n]+/).map((sentence) => sentence.trim()).filter(Boolean);
+  const hasFreeFormBrandClaim = sentences.some((sentence) =>
+    /\bdiabeats\b/i.test(sentence) && !genericBrandCtas.some((template) => template.test(sentence)));
+  if (hasFreeFormBrandClaim || genericAppCapabilityPattern.test(text)) {
     errors.push("Use manifest-derived feature claims instead of free-form DiabEats capability copy");
   }
   for (const rule of unsupportedFeatureClaims) {
