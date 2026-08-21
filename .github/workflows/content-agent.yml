@@ -56,4 +56,15 @@ jobs:
         with:
           name: diabeats-content-${{ github.run_id }}
           path: |
-            content
+            content-agent/outbox/*.json
+            content-agent/outbox/*.mp3
+            content-agent/outbox/*.mp4
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Save Content Agent state
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: content-agent/state.json
+          key: content-agent-state-${{ github.run_id }}
