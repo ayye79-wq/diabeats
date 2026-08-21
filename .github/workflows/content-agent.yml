@@ -2,7 +2,7 @@ name: DiabEats Content Agent
 
 on:
   schedule:
-    # 8 AM and 7 PM America/New_York during daylight time (UTC schedule).
+    # 8 AM and 7 PM America/New_York during daylight time
     - cron: "0 12,23 * * *"
   workflow_dispatch:
 
@@ -12,34 +12,48 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out DiabEats
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: rm -f package-lock.json && npm install --ignore-scripts --registry=https://registry.npmjs.org/
-      - uses: actions/cache/restore@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+          ffmpeg -version
+
+      - name: Install dependencies
+        run: |
+          rm -f package-lock.json
+          npm install --ignore-scripts --registry=https://registry.npmjs.org/
+
+      - name: Restore Content Agent state
+        uses: actions/cache/restore@v4
         with:
           path: content-agent/state.json
           key: content-agent-state-${{ github.run_id }}
-          restore-keys: content-agent-state-
-      - run: npm run test:content-agent
-      - run: npm run content:generate
+          restore-keys: |
+            content-agent-state-
+
+      - name: Run Content Agent safety tests
+        run: npm run test:content-agent
+
+      - name: Generate DiabEats content package
+        run: npm run content:generate
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload content package
+        uses: actions/upload-artifact@v4
         with:
           name: diabeats-content-${{ github.run_id }}
           path: |
-            content-agent/outbox/*.json
-            content-agent/outbox/*.mp3
-            content-agent/outbox/*.mp4
-          retention-days: 14
-          if-no-files-found: error
-      - uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: content-agent/state.json
-          key: content-agent-state-${{ github.run_id }}
+            content
