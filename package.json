@@ -9,17 +9,20 @@
     "expo:start:static:build": "npx expo start --no-dev --minify --localhost",
     "expo:static:build": "node scripts/build.js",
     "server:build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=server_dist",
-    "server:prod": "PORT=8081 NODE_ENV=production node server_dist/index.js",
+    "server:prod": "NODE_ENV=production node server_dist/index.js",
     "db:push": "drizzle-kit push",
     "start": "npx expo start",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
     "test:biotrace": "tsx --test tests/biotrace-rating.test.ts tests/image-size-parser.test.ts",
+    "test:e2e": "playwright test",
     "security:health": "node scripts/security-health.js"
     ,"content:generate": "tsx content-agent/run.ts generate"
+     ,"content:preview:promo": "tsx content-agent/render-promo-preview.ts"
     ,"content:approve": "tsx content-agent/run.ts approve"
     ,"content:publish": "tsx content-agent/run.ts publish"
     ,"test:content-agent": "tsx --test content-agent/*.test.ts"
+    ,"test:tiktok": "tsx --test content-agent/tiktok.test.ts server/tiktok.test.ts server/admin-content-template.test.ts"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.0",
@@ -64,12 +67,12 @@
     "react-native": "^0.86.2",
     "react-native-gesture-handler": "^2.32.0",
     "react-native-purchases": "^9.11.2",
-    "react-native-reanimated": "^4.5.1",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.26.0",
     "react-native-svg": "^15.15.4",
     "react-native-web": "^0.21.2",
-    "react-native-worklets": "^0.10.1",
+    "react-native-worklets": "0.10.1",
     "shell-quote": "^1.10.0",
     "tsx": "^4.20.6",
     "ws": "^8.21.3",
