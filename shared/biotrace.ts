@@ -120,7 +120,7 @@ export type GmoAssessment = z.infer<typeof gmoAssessmentSchema>;
 
 export const productSourceSchema = z
   .object({
-    provider: z.literal("open-food-facts"),
+    provider: z.enum(["open-food-facts", "usda-fooddata-central"]),
     /** Canonical URL for the product on the provider. */
     url: z.string().url().nullable(),
     /** ISO timestamp when this record was fetched/normalized. */

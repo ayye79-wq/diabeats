@@ -121,7 +121,7 @@ export function BioTraceResult({ product, rating, dark = false, saved, onSave, o
         {product.source.url ? (
           <Pressable onPress={() => Linking.openURL(product.source.url!)} style={styles.sourceLink}>
             <Ionicons name="open-outline" size={15} color={Colors.brand.primary} />
-            <Text style={styles.sourceLinkText}>View source on Open Food Facts</Text>
+            <Text style={styles.sourceLinkText}>View source on {product.source.provider === "usda-fooddata-central" ? "USDA FoodData Central" : "Open Food Facts"}</Text>
           </Pressable>
         ) : null}
       </View>

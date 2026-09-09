@@ -51,6 +51,7 @@ import { barcodeSchema, ProviderError, type NormalizedProduct } from "../shared/
 import { computeBioTraceRating } from "../shared/biotrace-rating";
 import { lookupByBarcode, searchByName } from "./services/open-food-facts";
 import { findAlternatives } from "./services/biotrace-alternatives";
+import { lookupUsdaFood, searchUsdaFoods } from "./services/usda-fooddata-central";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const AI_QUESTION_LIMIT = 5;
@@ -1172,6 +1173,26 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
       }
     },
   );
+
+  app.get("/api/biotrace/usda/search", requireSession, productLookupRateLimit, async (req: Request, res: Response) => {
+    const input = validate(z.object({ q: z.string().trim().min(2).max(200), pageSize: z.coerce.number().int().min(1).max(20).optional().default(10) }), req.query, res);
+    if (!input) return;
+    try {
+      res.json({ hits: await searchUsdaFoods(input.q, input.pageSize), source: "usda-fooddata-central" });
+    } catch (err) {
+      handleProviderError(err, res, "USDA food search failed.");
+    }
+  });
+
+  app.get("/api/biotrace/usda/food/:id", requireSession, productLookupRateLimit, async (req: Request, res: Response) => {
+    const input = z.coerce.number().int().positive().safeParse(req.params.id);
+    if (!input.success) return res.status(400).json({ error: "Invalid USDA food ID." });
+    try {
+      res.json(biotraceRatedProduct(await lookupUsdaFood(input.data)));
+    } catch (err) {
+      handleProviderError(err, res, "USDA food lookup failed.");
+    }
+  });
 
   // Deterministic ranked alternatives for a barcode.
   app.get(
