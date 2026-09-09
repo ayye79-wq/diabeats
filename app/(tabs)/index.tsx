@@ -10,6 +10,7 @@ import {
   Platform,
   useColorScheme,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -147,6 +148,8 @@ export default function DiscoverScreen() {
   const [selectedCuisine, setSelectedCuisine] = useState<string>("All");
   const [locationLabel, setLocationLabel] = useState("Nearby");
   const [locating, setLocating] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [manualLocation, setManualLocation] = useState("");
 
   const [smartMode, setSmartMode] = useState(false);
   const [smartLoading, setSmartLoading] = useState(false);
@@ -343,7 +346,7 @@ export default function DiscoverScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerLabel}>Eating near</Text>
-            <Pressable onPress={requestLocation} style={styles.locationRow}>
+            <Pressable onPress={() => setShowLocationPicker(true)} style={styles.locationRow} accessibilityRole="button" accessibilityLabel={`Choose location, currently ${locationLabel}`}>
               {locating ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
@@ -458,6 +461,20 @@ export default function DiscoverScreen() {
           </ScrollView>
         )}
       </LinearGradient>
+
+      <Modal visible={showLocationPicker} transparent animationType="fade" onRequestClose={() => setShowLocationPicker(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowLocationPicker(false)}>
+          <Pressable style={[styles.locationModal, { backgroundColor: c.cardBg }]} onPress={() => {}}>
+            <Text style={[styles.locationModalTitle, { color: c.textPrimary }]}>Choose an area</Text>
+            <Text style={[styles.locationModalCopy, { color: c.textSecondary }]}>Enter a city, ZIP code, or neighborhood. This changes the area label; restaurant availability still comes from DiabEats data.</Text>
+            <TextInput value={manualLocation} onChangeText={setManualLocation} placeholder="Rockville, MD or 20853" placeholderTextColor={c.textMuted} style={[styles.locationInput, { color: c.textPrimary, borderColor: c.border }]} autoFocus />
+            <View style={styles.locationActions}>
+              <Pressable onPress={() => { setShowLocationPicker(false); void requestLocation(); }} style={styles.locationSecondary}><Text style={styles.locationSecondaryText}>Use my location</Text></Pressable>
+              <Pressable onPress={() => { const next = manualLocation.trim(); if (next) setLocationLabel(next.slice(0, 40)); setShowLocationPicker(false); }} style={styles.locationPrimary}><Text style={styles.locationPrimaryText}>Apply</Text></Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {smartMode ? (
         <View style={{ flex: 1 }}>
@@ -1081,4 +1098,14 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.48)", justifyContent: "center", padding: 24 },
+  locationModal: { borderRadius: 18, padding: 20 },
+  locationModalTitle: { fontFamily: "Inter_700Bold", fontSize: 20 },
+  locationModalCopy: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 7 },
+  locationInput: { height: 47, borderWidth: 1, borderRadius: 11, paddingHorizontal: 12, marginTop: 16, fontFamily: "Inter_400Regular" },
+  locationActions: { flexDirection: "row", gap: 9, marginTop: 14 },
+  locationSecondary: { flex: 1, minHeight: 44, justifyContent: "center", alignItems: "center", borderRadius: 11, borderWidth: 1, borderColor: Colors.brand.primary },
+  locationSecondaryText: { color: Colors.brand.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  locationPrimary: { flex: 1, minHeight: 44, justifyContent: "center", alignItems: "center", borderRadius: 11, backgroundColor: Colors.brand.primary },
+  locationPrimaryText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
 });

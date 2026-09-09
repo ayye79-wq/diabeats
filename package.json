@@ -14,7 +14,7 @@
     "start": "npx expo start",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
-    "test:biotrace": "tsx --test tests/biotrace-rating.test.ts tests/image-size-parser.test.ts",
+    "test:biotrace": "tsx --test tests/biotrace-rating.test.ts tests/image-size-parser.test.ts tests/scan-input.test.ts",
     "test:e2e": "playwright test",
     "security:health": "node scripts/security-health.js"
     ,"content:generate": "tsx content-agent/run.ts generate"

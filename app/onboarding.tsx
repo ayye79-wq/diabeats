@@ -7,33 +7,29 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useApp, DiabetesType, DietGoal } from "@/context/AppContext";
+import { useApp, DiabetesType } from "@/context/AppContext";
 import Colors from "@/constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4;
 
 export default function OnboardingScreen() {
-  const { completeOnboarding, setDiabetesType, setUsesInsulin, setDailyCarbTarget, setDietGoal } = useApp();
+  const { completeOnboarding, setDiabetesType, setUsesInsulin } = useApp();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>(1);
 
   // Local state for choices until completion
   const [localDiabetesType, setLocalDiabetesType] = useState<DiabetesType>("type2");
   const [localUsesInsulin, setLocalUsesInsulin] = useState<boolean>(false);
-  const [localCarbTarget, setLocalCarbTarget] = useState<number>(45);
-  const [localDietGoal, setLocalDietGoal] = useState<DietGoal>("balanced");
 
   const handleNext = () => {
-    if (step < 5) {
+    if (step < 4) {
       setStep((step + 1) as Step);
     } else {
       // Finalize
       setDiabetesType(localDiabetesType);
       setUsesInsulin(localUsesInsulin);
-      setDailyCarbTarget(localCarbTarget);
-      setDietGoal(localDietGoal);
       completeOnboarding();
     }
   };
@@ -127,41 +123,6 @@ export default function OnboardingScreen() {
       case 4:
         return (
           <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={styles.stepContainer}>
-            <Text style={styles.title}>What’s your daily carb target?</Text>
-            <Text style={styles.subtitle}>Suggested per meal</Text>
-            <View style={styles.optionsContainer}>
-              {[
-                { label: "Strict (<30g)", value: 25, goal: "strict" as DietGoal },
-                { label: "Balanced (30-45g)", value: 45, goal: "balanced" as DietGoal },
-                { label: "Relaxed (45-60g)", value: 60, goal: "weight-loss" as DietGoal },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.optionButton,
-                    localCarbTarget === item.value && styles.optionButtonActive,
-                  ]}
-                  onPress={() => {
-                    setLocalCarbTarget(item.value);
-                    setLocalDietGoal(item.goal);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      localCarbTarget === item.value && styles.optionTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        );
-      case 5:
-        return (
-          <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={styles.stepContainer}>
             <View style={styles.iconContainer}>
               <Ionicons name="checkmark-circle" size={80} color={Colors.brand.good} />
             </View>
@@ -177,13 +138,9 @@ export default function OnboardingScreen() {
                 <Text style={styles.summaryLabel}>Insulin Use</Text>
                 <Text style={styles.summaryValue}>{localUsesInsulin ? "Yes" : "No"}</Text>
               </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Carb Target</Text>
-                <Text style={styles.summaryValue}>{localCarbTarget}g per meal</Text>
-              </View>
             </View>
             <Text style={styles.description}>
-              We’ll use this information to personalize your meal recommendations.
+              We’ll use this information to organize educational food insights. Set a carbohydrate target later only if it comes from your own care plan.
             </Text>
             <Text style={styles.legalNote}>
               DiabEats is for informational purposes only and is not a medical device. It does not diagnose, treat, or prevent diabetes. Always consult your healthcare team before making changes to your diet or medication.
@@ -202,7 +159,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         )}
         <View style={styles.progressContainer}>
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <View
               key={s}
               style={[
@@ -219,7 +176,7 @@ export default function OnboardingScreen() {
       <View style={styles.footer}>
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextButtonText}>
-            {step === 5 ? "Start Exploring" : "Continue"}
+            {step === 4 ? "Start Exploring" : "Continue"}
           </Text>
         </TouchableOpacity>
       </View>

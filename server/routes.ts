@@ -1105,6 +1105,20 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
     }
   }
 
+  async function readCachedProduct(barcode: string): Promise<NormalizedProduct | null> {
+    try {
+      const [cached] = await db
+        .select({ data: biotraceProducts.data })
+        .from(biotraceProducts)
+        .where(eq(biotraceProducts.barcode, barcode))
+        .limit(1);
+      return cached?.data ? (cached.data as NormalizedProduct) : null;
+    } catch (error) {
+      console.error("BioTrace product cache read failed:", error);
+      return null;
+    }
+  }
+
   const biotraceRatedProduct = (product: NormalizedProduct) => ({
     product,
     rating: computeBioTraceRating(product),
@@ -1123,8 +1137,12 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
       try {
         const product = await lookupByBarcode(parsed.data);
         await cacheProduct(product);
-        res.json(biotraceRatedProduct(product));
+        res.json({ ...biotraceRatedProduct(product), cached: false });
       } catch (err) {
+        const cached = await readCachedProduct(parsed.data);
+        if (cached) {
+          return res.json({ ...biotraceRatedProduct(cached), cached: true, stale: true });
+        }
         handleProviderError(err, res, "Failed to look up product.");
       }
     },

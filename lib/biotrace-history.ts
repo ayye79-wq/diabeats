@@ -52,12 +52,20 @@ export async function recordLocalBioTraceScan(
     rating: result.rating,
   };
   const existing = await read();
-  await write([record, ...existing]);
+  const duplicateWindowStart = Date.now() - 30_000;
+  const withoutRapidDuplicates = existing.filter(
+    (item) => item.barcode !== record.barcode || new Date(item.scannedAt).getTime() < duplicateWindowStart,
+  );
+  await write([record, ...withoutRapidDuplicates]);
   return record;
 }
 
 export async function getPendingLocalBioTraceScans() {
   return (await read()).filter((record) => record.syncState === "pending");
+}
+
+export async function getLocalBioTraceScans() {
+  return read();
 }
 
 export async function removeLocalBioTraceScan(localId: string) {

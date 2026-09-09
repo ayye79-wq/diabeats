@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -22,6 +23,7 @@ import type { NormalizedProduct, ProductSearchHit } from "@/shared/biotrace";
 import type { BioTraceRating } from "@/shared/biotrace-rating";
 import { BioTraceResult } from "@/components/BioTraceResult";
 import { recordLocalBioTraceScan, syncPendingBioTraceScans } from "@/lib/biotrace-history";
+import { parseScanInput } from "@/shared/scan-input";
 
 type Result = { product: NormalizedProduct; rating: BioTraceRating };
 type ScanMode = "start" | "camera" | "results";
@@ -94,8 +96,8 @@ export default function BioTraceScreen() {
     }
   }, [barcode, recordScan]);
 
-  const searchByName = useCallback(async () => {
-    const query = productQuery.trim();
+  const searchByName = useCallback(async (rawQuery?: string) => {
+    const query = (typeof rawQuery === "string" ? rawQuery : productQuery).trim();
     if (!query) {
       setError("Enter a product or brand to search.");
       return;
@@ -113,6 +115,33 @@ export default function BioTraceScreen() {
       setLoading(false);
     }
   }, [productQuery]);
+
+  const handleScannedValue = useCallback((raw: string) => {
+    const input = parseScanInput(raw);
+    setMode("start");
+    if (input.kind === "barcode") {
+      setBarcode(input.value);
+      void lookupBarcode(input.value);
+      return;
+    }
+    if (input.kind === "product-query") {
+      setProductQuery(input.value);
+      void searchByName(input.value);
+      return;
+    }
+    if (input.kind === "test-menu") {
+      router.push("/(tabs)/scan");
+      return;
+    }
+    if (input.kind === "url") {
+      Alert.alert("Link detected", "This QR code is a web link, not verified nutrition data.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Open link", onPress: () => void Linking.openURL(input.value) },
+      ]);
+      return;
+    }
+    setError("This code does not contain a supported barcode or product name. No nutrition values were guessed.");
+  }, [lookupBarcode, searchByName]);
 
   const saveFood = useCallback(async () => {
     if (!result) return;
@@ -197,11 +226,9 @@ export default function BioTraceScreen() {
         ) : (
           <CameraView
             style={styles.camera}
-            barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128"] }}
+            barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128", "qr"] }}
             onBarcodeScanned={({ data }) => {
-              setMode("start");
-              setBarcode(data);
-              void lookupBarcode(data);
+              handleScannedValue(data);
             }}
           >
             <View style={styles.scannerGuide}>
@@ -296,8 +323,8 @@ export default function BioTraceScreen() {
         <View style={[styles.card, { backgroundColor: c.cardBg, borderColor: c.border }]}>
           <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Search by product name</Text>
           <View style={styles.inputRow}>
-            <TextInput value={productQuery} onChangeText={setProductQuery} placeholder="e.g. plain Greek yogurt" placeholderTextColor={c.textMuted} style={[styles.input, { color: c.textPrimary, borderColor: c.border }]} onSubmitEditing={searchByName} accessibilityLabel="Search products by name" />
-            <Pressable onPress={searchByName} style={styles.iconLookupBtn} disabled={loading} accessibilityRole="button" accessibilityLabel="Search products" accessibilityState={{ disabled: loading, busy: loading }}><Ionicons name="search" size={20} color="#fff" /></Pressable>
+            <TextInput value={productQuery} onChangeText={setProductQuery} placeholder="e.g. plain Greek yogurt or yellow onion" placeholderTextColor={c.textMuted} style={[styles.input, { color: c.textPrimary, borderColor: c.border }]} onSubmitEditing={() => void searchByName()} accessibilityLabel="Search products or produce by name" />
+            <Pressable onPress={() => void searchByName()} style={styles.iconLookupBtn} disabled={loading} accessibilityRole="button" accessibilityLabel="Search products" accessibilityState={{ disabled: loading, busy: loading }}><Ionicons name="search" size={20} color="#fff" /></Pressable>
           </View>
           {hits.map((hit) => (
             <Pressable key={`${hit.barcode}-${hit.name}`} onPress={() => hit.barcode ? lookupBarcode(hit.barcode, "search") : setError("This result has no usable barcode. Try scanning the package.")} style={[styles.hitRow, { borderTopColor: c.border }]} accessibilityRole="button" accessibilityLabel={`${hit.name}, ${hit.brand ?? "brand not listed"}${hit.barcode ? "" : ", barcode unavailable"}`}>
