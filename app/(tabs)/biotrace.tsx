@@ -28,6 +28,7 @@ import { parseScanInput } from "@/shared/scan-input";
 type Result = { product: NormalizedProduct; rating: BioTraceRating };
 type ScanMode = "start" | "camera" | "results";
 type Alternative = Result;
+type SearchHit = ProductSearchHit & { provider?: "open-food-facts" | "usda-fooddata-central"; providerId?: number };
 
 function readableError(error: unknown) {
   const message = error instanceof Error ? error.message : "Could not look up this product.";
@@ -44,7 +45,7 @@ export default function BioTraceScreen() {
   const [mode, setMode] = useState<ScanMode>("start");
   const [barcode, setBarcode] = useState("");
   const [productQuery, setProductQuery] = useState("");
-  const [hits, setHits] = useState<ProductSearchHit[]>([]);
+  const [hits, setHits] = useState<SearchHit[]>([]);
   const [result, setResult] = useState<Result | null>(null);
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,14 +108,51 @@ export default function BioTraceScreen() {
     try {
       const res = await apiRequest("GET", `/api/biotrace/search?q=${encodeURIComponent(query)}&pageSize=12`);
       const data = (await res.json()) as { hits: ProductSearchHit[] };
-      setHits(data.hits ?? []);
-      if (!(data.hits ?? []).length) setError("No products matched that search. Try a brand name or scan the barcode.");
+      const offHits: SearchHit[] = (data.hits ?? []).map((hit) => ({ ...hit, provider: "open-food-facts" }));
+      if (offHits.length) {
+        setHits(offHits);
+      } else {
+        const usdaResponse = await apiRequest("GET", `/api/biotrace/usda/search?q=${encodeURIComponent(query)}&pageSize=12`);
+        const usda = (await usdaResponse.json()) as { hits?: { id: number; name: string; brand: string | null }[] };
+        const usdaHits: SearchHit[] = (usda.hits ?? []).map((hit) => ({
+          barcode: null,
+          name: hit.name,
+          brand: hit.brand,
+          imageAvailable: false,
+          nutriScore: null,
+          provider: "usda-fooddata-central",
+          providerId: hit.id,
+        }));
+        setHits(usdaHits);
+        if (!usdaHits.length) setError("No verified product or generic-food record matched. No nutrition values were guessed.");
+      }
     } catch (err) {
       setError(readableError(err));
     } finally {
       setLoading(false);
     }
   }, [productQuery]);
+
+  const lookupSearchHit = useCallback(async (hit: SearchHit) => {
+    if (hit.barcode) return lookupBarcode(hit.barcode, "search");
+    if (!hit.providerId) {
+      setError("This result has no verified nutrition record.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest("GET", `/api/biotrace/usda/food/${hit.providerId}`);
+      const next = (await response.json()) as Result;
+      setResult(next);
+      setSaved(false);
+      setMode("results");
+    } catch (err) {
+      setError(readableError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [lookupBarcode]);
 
   const handleScannedValue = useCallback((raw: string) => {
     const input = parseScanInput(raw);
@@ -327,12 +365,12 @@ export default function BioTraceScreen() {
             <Pressable onPress={() => void searchByName()} style={styles.iconLookupBtn} disabled={loading} accessibilityRole="button" accessibilityLabel="Search products" accessibilityState={{ disabled: loading, busy: loading }}><Ionicons name="search" size={20} color="#fff" /></Pressable>
           </View>
           {hits.map((hit) => (
-            <Pressable key={`${hit.barcode}-${hit.name}`} onPress={() => hit.barcode ? lookupBarcode(hit.barcode, "search") : setError("This result has no usable barcode. Try scanning the package.")} style={[styles.hitRow, { borderTopColor: c.border }]} accessibilityRole="button" accessibilityLabel={`${hit.name}, ${hit.brand ?? "brand not listed"}${hit.barcode ? "" : ", barcode unavailable"}`}>
+            <Pressable key={`${hit.providerId ?? hit.barcode}-${hit.name}`} onPress={() => void lookupSearchHit(hit)} style={[styles.hitRow, { borderTopColor: c.border }]} accessibilityRole="button" accessibilityLabel={`${hit.name}, ${hit.brand ?? "brand not listed"}`}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.hitName, { color: c.textPrimary }]} numberOfLines={1}>{hit.name}</Text>
-                <Text style={[styles.hitSub, { color: c.textSecondary }]}>{hit.brand ?? "Brand not listed"}{hit.nutriScore ? ` · Nutri-Score ${hit.nutriScore.toUpperCase()}` : ""}</Text>
+                <Text style={[styles.hitSub, { color: c.textSecondary }]}>{hit.brand ?? (hit.provider === "usda-fooddata-central" ? "USDA generic food" : "Brand not listed")}{hit.nutriScore ? ` · Nutri-Score ${hit.nutriScore.toUpperCase()}` : ""}</Text>
               </View>
-              <Ionicons name={hit.barcode ? "arrow-forward-circle-outline" : "information-circle-outline"} size={21} color={Colors.brand.primary} />
+              <Ionicons name="arrow-forward-circle-outline" size={21} color={Colors.brand.primary} />
             </Pressable>
           ))}
         </View>
