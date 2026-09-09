@@ -20,10 +20,10 @@ export const ratingLabelSchema = z.enum([
 export type RatingLabel = z.infer<typeof ratingLabelSchema>;
 
 export const RATING_DISPLAY: Record<RatingLabel, string> = {
-  "better-fit": "Better Fit",
-  "use-with-caution": "Use with Caution",
-  limit: "Limit",
-  "insufficient-information": "Insufficient Information",
+  "better-fit": "Better choice",
+  "use-with-caution": "Moderate impact",
+  limit: "Higher impact",
+  "insufficient-information": "Not enough information",
 };
 
 /** A single transparent factor that contributed to the rating. */

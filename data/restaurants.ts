@@ -1,34 +1,44 @@
-" },
-            { label: "Extras", choice: "Romaine lettuce (ask to add)" },
-            { label: "Skip", choice: "Sour cream, queso, vinaigrette", skip: true },
-          ],
-        },
-        {
-          id: "m6-2",
-          name: "Chicken Burrito Bowl",
-          description: "Grilled chicken with brown rice, black beans, cheese, salsa, and sour cream.",
-          category: "Bowls",
-          price: "$11",
-          diabeticScore: "caution",
-          carbRange: "60–75g net carbs",
-          nutrients: [
-            { label: "Calories", value: "720" }, { label: "Protein", value: "44g" },
-            { label: "Fat", value: "22g" }, { label: "Carbs", value: "72g" },
-            { label: "Fiber", value: "14g" }, { label: "Sugar", value: "5g" },
-          ],
-          quickTip: "Ask for half portions of rice and beans to cut carbs by ~30g. Swap white rice for brown rice for better fiber.",
-          orderSteps: [
-            { label: "Base", choice: "Bowl (not burrito)" },
-            { label: "Rice", choice: "Brown rice (half portion)" },
-            { label: "Beans", choice: "Black beans (half portion)" },
-            { label: "Protein", choice: "Grilled chicken" },
-            { label: "Toppings", choice: "Fajita veggies, tomato salsa, cheese" },
-            { label: "Skip", choice: "White rice", skip: true },
-            { label: "Skip", choice: "Extra sour cream, queso", skip: true },
-          ],
-        },
-      ],
-    },
+export type DiabeticScore = "good" | "caution" | "avoid";
+
+export interface OrderStep {
+  label: string;
+  choice: string;
+  skip?: boolean;
+}
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  price: string;
+  diabeticScore: DiabeticScore;
+  carbRange: string;
+  nutrients: { label: string; value: string }[];
+  quickTip: string;
+  glycemicLoad?: "low" | "medium" | "high";
+  orderSteps?: OrderStep[];
+}
+
+export interface Restaurant {
+  id: string;
+  name: string;
+  dietitianReviewed?: boolean;
+  orderUrl?: string;
+  cuisine: string;
+  address: string;
+  distance: string;
+  rating: number;
+  reviewCount: number;
+  priceLevel: string;
+  phone: string;
+  lat: number;
+  lng: number;
+  tags: string[];
+  menuItems: MenuItem[];
+}
+
+export const RESTAURANTS: Restaurant[] = [
     {
       id: "r7",
       name: "Sweetgreen",
@@ -1540,4 +1550,3 @@
       ],
     },
   ];
-  

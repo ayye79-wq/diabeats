@@ -25,7 +25,7 @@ import type { BloodSugarOutcome } from "@/context/AppContext";
 import { apiRequest } from "@/lib/query-client";
 import {
   clearLocalBioTraceScans,
-  getPendingLocalBioTraceScans,
+  getLocalBioTraceScans,
   removeLocalBioTraceScan,
   syncPendingBioTraceScans,
   type LocalBioTraceScan,
@@ -97,13 +97,19 @@ export default function SavedScreen() {
   });
   const refreshLocalScans = useCallback(async () => {
     await syncPendingBioTraceScans();
-    setPendingLocalScans(await getPendingLocalBioTraceScans());
+    setPendingLocalScans(await getLocalBioTraceScans());
   }, []);
   useEffect(() => {
     void refreshLocalScans();
   }, [refreshLocalScans]);
   const visibleBioTraceScans = useMemo<DisplayBioTraceScan[]>(
-    () => [...pendingLocalScans, ...bioTraceScans],
+    () => {
+      const localKeys = new Set(pendingLocalScans.map((scan) => `${scan.barcode}:${scan.scannedAt.slice(0, 16)}`));
+      return [
+        ...pendingLocalScans,
+        ...bioTraceScans.filter((scan: any) => !localKeys.has(`${scan.barcode ?? ""}:${(scan.scannedAt ?? "").slice(0, 16)}`)),
+      ];
+    },
     [bioTraceScans, pendingLocalScans],
   );
 
@@ -361,12 +367,12 @@ export default function SavedScreen() {
             savedBioTraceFoods.map((food) => {
               const ratingTone =
                 food.ratingLabel === "better-fit"
-                  ? { bg: "#DCFCE7", color: "#166534", label: "Better Fit" }
+                  ? { bg: "#DCFCE7", color: "#166534", label: "Better choice" }
                   : food.ratingLabel === "limit"
-                    ? { bg: "#FEE2E2", color: "#991B1B", label: "Limit" }
+                    ? { bg: "#FEE2E2", color: "#991B1B", label: "Higher impact" }
                     : food.ratingLabel === "insufficient-information"
-                      ? { bg: "#E5E7EB", color: "#374151", label: "Needs label data" }
-                      : { bg: "#FEF3C7", color: "#92400E", label: "Use with Caution" };
+                      ? { bg: "#E5E7EB", color: "#374151", label: "Not enough information" }
+                      : { bg: "#FEF3C7", color: "#92400E", label: "Moderate impact" };
               return (
                 <Pressable
                   key={food.id}
