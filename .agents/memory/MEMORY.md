@@ -25,3 +25,4 @@
 - [BioTrace profile personalization](biotrace-profile-personalization.md) — reweight verified facts transiently; never persist profile-derived rating text or infer nutrition thresholds from insulin use.
 - [USDA generic search requests](usda-generic-search-throttling.md) — use serialized JSON POST searches with bounded retries; parallel GET searches can return intermittent HTTP 400 responses.
 - [BioTrace reference-gap telemetry](biotrace-reference-gap-telemetry.md) — every result that exposes ingredient analysis contributes aggregate-only unclassified dimensions.
+- [GitHub workflow backup scope](github-workflow-backup-scope.md) — backup branches that change Actions workflows need workflow-capable GitHub authorization.
