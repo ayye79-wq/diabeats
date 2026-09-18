@@ -1,0 +1,138 @@
+Fix the two BioTrace defects confirmed during physical iPhone barcode testing. Implement the fixes, add regression tests, run all relevant tests, and report exactly what changed.
+
+## Defect 1: Raw Open Food Facts 404 reaches the user
+
+Reproduction barcode:
+
+`012000001536`
+
+Current behavior:
+
+`Open Food Facts responded with status 404`
+
+Verified provider behavior:
+
+* Open Food Facts returns HTTP 404/product not found.
+* USDA FoodData Central returns zero matches for this barcode.
+
+This is a normal product-not-found condition, not a system failure. A raw provider name, HTTP status, stack trace, endpoint, or technical exception must never reach the mobile UI.
+
+Required behavior:
+
+1. Treat Open Food Facts 404/status 0 as a provider miss, not a fatal error.
+
+2. Continue through the existing BioTrace resolver sequence:
+
+   * Fresh database cache
+   * Open Food Facts exact barcode lookup
+   * USDA FoodData Central server-side fallback
+   * Existing user recovery options
+
+3. If USDA also returns no trustworthy exact match, return a typed `not_found` result.
+
+4. Display this user-facing message:
+
+   `We couldn’t find this product. Check the barcode, search by name, or take a photo of the nutrition label.`
+
+5. Preserve the scanned barcode so retry, search-by-name, photo recovery, and history can use it.
+
+6. Log provider/status details only on the server with no API keys or sensitive values.
+
+7. Do not fabricate a product or accept a weak fuzzy USDA match as an exact barcode match.
+
+8. Provider timeouts, 429 responses, and 5xx responses should produce a friendly temporary-unavailable state—not raw provider errors.
+
+9. Do not expose `USDA_API_KEY` to the client, logs, test snapshots, or API responses.
+
+Normalize GTIN safely when querying providers. Support valid UPC-A/EAN/GTIN representations without changing the originally scanned value. Where appropriate, try equivalent zero-padded GTIN forms, but require an exact normalized GTIN match before accepting a barcode result.
+
+Use this USDA-confirmed Pepsi test code for live fallback testing:
+
+* UPC-A: `012000000133`
+* Equivalent GTIN-14: `00012000000133`
+* Expected USDA product: Pepsi Cola, 12 fl oz aluminum can
+
+Also test `012000001536` as a known clean not-found case.
+
+## Defect 2: Snickers result contradicts its ingredients
+
+Observed Snickers result:
+
+* Nutrition: 32 g carbohydrates and 28 g sugars
+* Ingredients include sugar and corn syrup
+* Ingredient analysis correctly identifies both as sweeteners
+* “Why this rating” incorrectly displays a green `No added sugars`
+
+This is internally contradictory and medically misleading.
+
+Required behavior:
+
+1. Never display `No added sugars` when the ingredient list contains a recognized added sweetener.
+
+2. Detect common added-sugar terms, including at minimum:
+
+   * sugar
+   * corn syrup
+   * high-fructose corn syrup
+   * glucose syrup
+   * fructose
+   * dextrose
+   * sucrose
+   * maltose
+   * invert sugar
+   * cane sugar
+   * brown sugar
+   * honey
+   * molasses
+   * agave syrup
+   * rice syrup
+   * malt syrup
+   * fruit juice concentrate when used as a sweetener
+
+3. If an authoritative added-sugars gram value is available and reliable, display it.
+
+4. If grams are unavailable but ingredients prove added sweeteners are present, display:
+
+   `Contains added sugars or sweeteners`
+
+5. If neither nutrition data nor ingredients establish the answer, display:
+
+   `Added sugar amount unavailable`
+
+6. Only display `No added sugars` when reliable source data explicitly supports zero added sugars and the ingredient list contains no recognized added sweetener.
+
+7. Ingredient evidence must override a contradictory or missing zero-value field for the wording shown to users.
+
+8. Do not treat naturally occurring lactose or whole-fruit sugar as added sugar without evidence.
+
+9. Preserve the existing deterministic BioTrace rating unless correcting this contradiction logically requires updating the specific added-sugar factor. Do not redesign the scoring system.
+
+## Regression tests required
+
+Add tests proving:
+
+1. Open Food Facts 404 becomes a provider miss and triggers USDA fallback.
+2. Open Food Facts status-0/product-not-found payload is treated the same way.
+3. OFF miss plus USDA miss returns typed `not_found`.
+4. The client never displays `Open Food Facts responded with status 404`.
+5. Provider 429/timeout/5xx returns a safe temporary-unavailable response.
+6. `USDA_API_KEY` remains server-only and never appears in serialized responses or logs.
+7. Equivalent UPC-A and GTIN-14 values normalize correctly.
+8. USDA results are accepted only when the returned GTIN exactly matches after normalization.
+9. A Snickers-like product containing `sugar` and `corn syrup` cannot produce `No added sugars`.
+10. A product with explicit zero added sugars and no sweetener ingredients can still produce `No added sugars`.
+11. Missing added-sugar grams plus sweetener ingredients produces `Contains added sugars or sweeteners`.
+12. Unknown data produces `Added sugar amount unavailable`.
+13. Existing barcode, QR safety, label-photo, history, saved-food, cache, and BioTrace scoring tests continue to pass.
+
+After implementing:
+
+* Run unit, integration, and type-checking tests.
+* Live-test the two Pepsi codes using the configured server-side USDA secret.
+* Do not reveal the API key.
+* Report the request route and final outcome for each code.
+* List every changed file.
+* Explain the resolver behavior before and after.
+* Show the exact new user-facing messages.
+* Confirm no database schema, dependency, provider, paid service, or unrelated UI change was introduced unless absolutely necessary.
+* If any test cannot run, state the exact reason instead of claiming it passed.

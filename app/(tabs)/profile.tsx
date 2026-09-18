@@ -667,7 +667,7 @@ export default function ProfileScreen() {
             <View style={styles.optionInfo}>
               <Text style={[styles.optionLabel, { color: c.textPrimary }]}>Health Profile</Text>
               <Text style={[styles.optionDesc, { color: c.textSecondary }]}>
-                {currentDiabetesLabel} • {dailyCarbTarget}g carbs • {usesInsulin ? "Uses Insulin" : "No Insulin"}
+                {currentDiabetesLabel} • {dailyCarbTarget !== null ? `${dailyCarbTarget}g care-plan carbs` : "No care-plan target"} • {usesInsulin ? "Uses Insulin" : "No Insulin"}
               </Text>
             </View>
             <Ionicons name={isEditingProfile ? "chevron-up" : "chevron-down"} size={20} color={c.textMuted} />
@@ -697,8 +697,23 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.editSection}>
-                <Text style={[styles.editLabel, { color: c.textSecondary }]}>Daily Carb Target</Text>
+                <Text style={[styles.editLabel, { color: c.textSecondary }]}>Care-plan carbohydrate target (optional)</Text>
+                <Text style={[styles.optionDesc, { color: c.textSecondary, marginBottom: 8 }]}>
+                  Enter a target only if it comes from your personal care plan or healthcare professional.
+                </Text>
                 <View style={styles.chipContainer}>
+                  <Pressable
+                    onPress={() => setDailyCarbTarget(null)}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: dailyCarbTarget === null ? Colors.brand.primary : c.background },
+                      dailyCarbTarget === null && { borderColor: Colors.brand.primary },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: dailyCarbTarget === null ? "#fff" : c.textPrimary }]}>
+                      No target
+                    </Text>
+                  </Pressable>
                   {CARB_TARGET_PRESETS.map((p) => (
                     <Pressable
                       key={p.value}

@@ -175,7 +175,7 @@ export default function MealSimulatorScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: c.textPrimary }]}>Meal Impact Explorer</Text>
-            <Text style={[styles.headerSub, { color: c.textMuted }]}>Compare food patterns—not a glucose prediction</Text>
+            <Text style={[styles.headerSub, { color: c.textMuted }]}>Educational meal-impact comparison; not an individual glucose prediction</Text>
           </View>
           <Pressable onPress={() => router.back()} hitSlop={10} testID="close-simulator">
             <Ionicons name="close" size={22} color={c.textMuted} />
@@ -270,7 +270,7 @@ export default function MealSimulatorScreen() {
           onPress={runSimulation}
           disabled={loading || activeCount === 0}
           style={({ pressed }) => [
-            styles.predictBtn,
+            styles.compareBtn,
             {
               backgroundColor: activeCount === 0 ? c.border : Colors.brand.primary,
               opacity: pressed || loading ? 0.85 : 1,
@@ -281,12 +281,12 @@ export default function MealSimulatorScreen() {
           {loading ? (
             <>
               <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.predictBtnText}>Simulating…</Text>
+              <Text style={styles.compareBtnText}>Comparing…</Text>
             </>
           ) : (
             <>
               <Ionicons name="pulse" size={18} color="#fff" />
-              <Text style={styles.predictBtnText}>
+              <Text style={styles.compareBtnText}>
                 {isPremium ? "Explore Meal Impact" : "Unlock Meal Explorer"}
               </Text>
               {!isPremium && <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.7)" />}
@@ -376,13 +376,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, marginTop: 20, paddingTop: 14, marginBottom: 16,
   },
   summaryText: { fontFamily: "Inter_400Regular", fontSize: 13 },
-  predictBtn: {
+  compareBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, borderRadius: 14,
     paddingVertical: 15, paddingHorizontal: 20,
     marginBottom: 16,
   },
-  predictBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  compareBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
   errorCard: {
     flexDirection: "row", alignItems: "center", gap: 8,
     borderRadius: 12, borderWidth: 1,

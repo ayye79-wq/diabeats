@@ -132,3 +132,52 @@ uri = "file://diabeats-project.zip"
 type = "unspecified"
 title = "DiabEats project ZIP"
 description = "Project source archive. Dependencies, Git metadata, and cache files were excluded to keep the download manageable."
+
+[[outputs]]
+id = "UpnjRavNBJJIjFHeSLhCx"
+uri = "file://assets/images/icon-polished.png"
+type = "image"
+title = "Polished DiabEats app icon"
+description = "Updated fork-and-leaf mark with a cleaner silhouette, stronger contrast, and the same emerald-and-orange identity."
+
+[[outputs]]
+id = "TB7kHbYGXeefLSg7XWsia"
+uri = "file://attached_assets/diabeats_logo_app_icon.png"
+type = "image"
+title = "DiabEats logo — app icon"
+description = "Full-bleed 1024×1024 app icon with the polished fork-and-leaf mark."
+
+[[outputs]]
+id = "xjh8KkavwpX-pKWNnyx_L"
+uri = "file://attached_assets/diabeats_logo_transparent.png"
+type = "image"
+title = "DiabEats logo — transparent mark"
+description = "1024×1024 transparent PNG containing only the colored fork-and-leaf mark for reuse in another app."
+
+[[outputs]]
+id = "AOhFwP4ky-L_D_xmIyjZI"
+uri = "file://content-agent/outbox/20260821174056-bj2li.mp4"
+type = "video"
+title = "DiabEats Content Agent draft preview"
+description = "Generated, unpublished MP4 preview for draft 20260821174056-bj2li. Review it in the protected Content Review page before using it in the TikTok demo recording."
+
+[[outputs]]
+id = "HUijXZDaJzH4YwGYP2USq"
+uri = "file://content-agent/review-drafts/diabeats-promo-v2-preview.mp4"
+type = "video"
+title = "DiabEats Social V2 — unapproved preview"
+description = "A 22-second vertical restaurant-meal preview with large captions, the required education disclaimer, and the final DiabEats CTA. It remains a Draft and was not uploaded to TikTok."
+
+[[outputs]]
+id = "mRXwlTNfqHeX0RmuRtJYS"
+uri = "file://content-agent/review-drafts/diabeats-promo-v3-preview.mp4"
+type = "video"
+title = "DiabEats V3 — unapproved review preview"
+description = "An 18.72-second vertical meal-comparison preview with four food visuals, subtle camera movement, labeled example nutrition values, the required disclaimer, and the final DiabEats CTA. It remains a Draft and was not uploaded to TikTok."
+
+[[outputs]]
+id = "szD2BrqAYpQrItB7oCFAL"
+uri = "file://content-agent/review-drafts/diabeats-promo-v4-preview.mp4"
+type = "video"
+title = "DiabEats V4 — unapproved review preview"
+description = "A 20.76-second vertical preview with a substantially lighter food treatment, localized translucent text cards, bright meal imagery, a clean final scene, the required disclaimer, and the final DiabEats CTA. It remains a Draft and was not uploaded to TikTok."

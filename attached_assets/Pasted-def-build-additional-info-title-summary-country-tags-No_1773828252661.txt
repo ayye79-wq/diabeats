@@ -1,0 +1,68 @@
+def build_additional_info(title, summary, country_tags=None, topic_tags=None, source_name=""):
+    """
+    Builds a short merged context + analysis paragraph for a story
+    using simple rule-based logic.
+    """
+    title = (title or "").strip()
+    summary = (summary or "").strip()
+    source_name = (source_name or "").strip()
+    country_tags = country_tags or []
+    topic_tags = topic_tags or []
+
+    text = f"{title} {summary}".lower()
+
+    country_text = ""
+    if country_tags:
+        if len(country_tags) == 1:
+            country_text = f" in {country_tags[0]}"
+        elif len(country_tags) == 2:
+            country_text = f" in {country_tags[0]} and {country_tags[1]}"
+        else:
+            country_text = f" across parts of the Horn of Africa"
+
+    intro = "This story reflects a broader regional development"
+    if source_name:
+        intro = f"This report from {source_name} reflects a broader regional development"
+
+    # Topic-based logic
+    if any(word in text for word in ["port", "trade", "corridor", "shipment", "export", "import", "logistics"]):
+        return (
+            f"{intro}{country_text}. Beyond the immediate headline, developments involving trade, "
+            f"ports, and transport routes can influence regional commerce, access, and political relationships. "
+            f"This may become more important if officials announce follow-up agreements or if neighboring countries respond."
+        )
+
+    if any(word in text for word in ["attack", "military", "troops", "conflict", "security", "armed", "violence"]):
+        return (
+            f"{intro}{country_text}. Security-related events often connect to wider tensions that can affect stability, "
+            f"civilian conditions, and regional diplomacy. The bigger issue is whether this remains isolated or becomes part "
+            f"of a larger pattern."
+        )
+
+    if any(word in text for word in ["election", "president", "minister", "parliament", "government", "policy"]):
+        return (
+            f"{intro}{country_text}. Political developments often carry significance beyond the initial announcement, "
+            f"especially when they affect public confidence, state policy, or relations with other actors. "
+            f"What matters next is whether this leads to concrete action or stays at the level of rhetoric."
+        )
+
+    if any(word in text for word in ["flood", "drought", "rain", "food", "aid", "displaced", "displacement", "humanitarian"]):
+        return (
+            f"{intro}{country_text}. Humanitarian and climate-related developments often have longer-term effects on households, "
+            f"public services, and regional response efforts. This story matters most in how it may shape relief needs "
+            f"and future vulnerability."
+        )
+
+    if any(word in text for word in ["telecom", "internet", "technology", "digital", "platform", "startup"]):
+        return (
+            f"{intro}{country_text}. Technology and connectivity stories often point to deeper economic and social shifts, "
+            f"including access to services, business growth, and information flow. The long-term impact may depend on adoption, "
+            f"regulation, and public response."
+        )
+
+    # fallback
+    return (
+        f"{intro}{country_text}. While the headline focuses on the immediate event, the broader significance usually comes from "
+        f"how it connects to ongoing political, economic, humanitarian, or security trends in the region. "
+        f"Readers should watch for follow-up statements and related developments."
+    )

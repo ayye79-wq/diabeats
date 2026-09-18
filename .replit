@@ -1,8 +1,12 @@
 entrypoint = "README.md"
-modules = ["nodejs-22", "postgresql-16"]
+modules = ["nodejs-22", "python-base-3.13", "postgresql-16", "java-graalvm22.3"]
 
 [nix]
 channel = "stable-24_05"
+# React Native DevTools bundles an Electron desktop binary. Keep this Linux
+# runtime package contract in sync with its shared-library requirements; the
+# check:expo-devtools command verifies the list before starting Expo.
+packages = ["glib", "nss", "dbus", "atk", "at-spi2-atk", "cups", "cairo", "gtk3", "pango", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "mesa", "xorg.libxcb", "libxkbcommon", "alsa-lib", "at-spi2-core", "nspr", "libdrm", "expat", "systemd"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -11,18 +15,21 @@ run = ["npm", "run", "server:prod"]
 
 [[ports]]
 localPort = 5000
-externalPort = 5000
+externalPort = 80
 
 [[ports]]
 localPort = 8081
-externalPort = 80
+externalPort = 8081
 
 [[ports]]
 localPort = 8082
 externalPort = 3000
 
-[env]
-PORT = "5000"
+[[ports]]
+localPort = 8099
+externalPort = 8099
+exposeLocalhost = true
+
 
 [agent]
 stack = "EXPO"
@@ -72,14 +79,15 @@ mode = "sequential"
 task = "shell.exec"
 args = "npm run expo:dev"
 waitForPort = 8081
-ensurePreviewReachable = "/status"
 
 [userenv]
 
 [userenv.shared]
 EXPO_PUBLIC_RC_IOS_KEY = "appl_uSpLBmaIfBYmyUVOAMiXGxNGbhN"
 EXPO_PUBLIC_RC_ANDROID_KEY = "goog_qoJzLFRswmgzdBWYCTqBYtrdQLF"
+TIKTOK_REDIRECT_URI = "https://diabeatsapp.com/api/tiktok/callback"
+REVENUECAT_PROJECT_ID = "proj6649d894"
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 180000
+timeoutMs = 900000

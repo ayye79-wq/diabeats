@@ -1,0 +1,51 @@
+Audit the current Diabeats codebase and determine whether the Revealit-inspired concept we previously discussed is actually implemented.
+
+Do not add or change anything yet. This is an inspection only.
+
+I want you to examine the current production code, navigation, database/storage logic, AI prompts, scan workflows, and UI screens and answer these questions:
+
+1. What Revealit-inspired functionality currently exists in Diabeats?
+    Identify every feature that goes beyond basic nutrition-label scanning and instead helps the user understand or “reveal” what is behind a food/product.
+2. Specifically check whether Diabeats currently does any of the following:
+    * scans a packaged food/product
+    * extracts nutrition facts
+    * analyzes the ingredient list
+    * explains ingredients in plain language
+    * identifies potentially concerning ingredients or additives
+    * evaluates degree of processing / ultra-processed food factors
+    * provides GMO or Bioengineered-food transparency
+    * explains why a particular factor matters
+    * gives an overall product assessment or summary
+    * provides personalized analysis based on the user’s diabetes profile
+    * compares the product against healthier alternatives
+    * recommends substitute products
+    * lets the AI Assistant answer questions specifically about a scanned product
+    * saves scanned products and their analyses
+    * allows the user to revisit previous scans
+    * combines BioTrace results with diabetes/blood-sugar impact information
+    * produces a simple “what you should know about this product” type of reveal
+3. For each feature, classify it as:
+    * ✅ Fully implemented and functional
+    * 🟡 Partially implemented
+    * ❌ Not implemented
+    * ⚠️ UI exists but backend/functionality is missing or mocked
+4. For every ✅ or 🟡 item, show me:
+    * the screen/component where it appears
+    * the relevant file(s)
+    * the function/API/database logic that powers it
+    * what data is real versus hard-coded, mocked, generated, or placeholder
+5. Trace this complete workflow and tell me exactly what currently happens:
+    Scan → packaged product → BioTrace → analysis/results → save → AI Assistant
+    Explain each step and identify anything that breaks, stops, or becomes placeholder data.
+6. Determine whether the current implementation is merely a BioTrace product scanner or whether it has evolved into a broader Revealit-style product intelligence feature.
+7. At the end, give me a concise conclusion in this format:
+    Revealit concept embedded: Yes / Partially / No
+    Estimated implementation: ___%
+    What is already there:
+    [brief summary]
+    What is missing:
+    [brief summary]
+    Best next improvement:
+    [one recommendation only]
+
+Important: base the answer on the actual current codebase, not previous conversations, plans, README claims, or assumptions. Do not modify the app until I review your audit.

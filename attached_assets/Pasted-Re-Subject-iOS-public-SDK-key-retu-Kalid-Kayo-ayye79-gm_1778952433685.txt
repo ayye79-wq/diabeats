@@ -1,0 +1,67 @@
+Re: Subject: iOS public SDK key retu
+
+Kalid Kayo <ayye79@gmail.com>
+Attachments
+Fri, May 15, 1:21 PM (1 day ago)
+to RevenueCat
+
+"purchasePackage() fails immediately with code 11 (INVALID_CREDENTIALS_ERROR). No Apple payment sheet appears. getOfferings() succeeds. No failed purchase requests visible in my logs either. Please check: 1) GET /v1/subscribers requests from bundle com.diabeats.app — are any returning 401? 2) Does app config appd204ef6957 have any internal flag causing purchase-related endpoints to return 401? 3) Can you reset/recreate the app config on your end?"
+
+On Thu, May 14, 2026 at 3:20 PM Joan Cardona (RevenueCat) <support@revenuecat.zendesk.com> wrote:
+Hi,
+ 
+Thank you for reaching out!
+ 
+I have checked the network logs from our side and I cannot find any failed request. I can see in your logs that you are using the right RevenueCat API key and that the bundle id matches the one you set in the dashboard too.
+ 
+I've noticed that you mentioned that you get this on the getOfferings but based on the screenshot I believe this is when trying to make a purchase, am I right?
+ 
+Your offering setup also looks correct and the products are Approved. This is the response I can see from the network logs for getOfferings:  
+"response_body": "\"{\\\"current_offering_id\\\":\\\"default\\\",\\\"offerings\\\":[{\\\"description\\\":\\\"The standard set of packages\\\",\\\"identifier\\\":\\\"default\\\",\\\"metadata\\\":null,\\\"packages\\\":[{\\\"identifier\\\":\\\"$rc_monthly\\\",\\\"platform_product_identifier\\\":\\\"com.diabeats.app.premium.monthly\\\"},{\\\"identifier\\\":\\\"$rc_annual\\\",\\\"platform_product_identifier\\\":\\\"com.diabeats.app.premium.annual\\\"}]}],\\\"placements\\\":{\\\"fallback_offering_id\\\":\\\"default\\\"}}\\n\"",
+ 
+Do you mind sharing the debug logs you see in the console and a screen recording of the issue to help investigate it further?
+ 
+I'd also like to confirm that:
+All your agreements are valid and approved in the Business section in App Store Connect
+The sandbox account you are using in your device is part of the testers for that app in App Store Connect
+Your developer membership is also valid and you have signed the latest update in developer.apple.com
+ 
+Thank you,
+Joan.
+
+
+On May 14, 2026 at 5:41:09 PM UTC, Kalid Kayo ayye79@gmail.com wrote:
+### Summary
+
+Subject: iOS public SDK key retu
+
+### Description
+
+Subject: iOS public SDK key returning invalidCredentialsError (401) on getOfferings() in production
+
+My public API key appl_uSpLBmaIfBYmyUVOAMiXGxNGbhN for bundle ID com.diabeats.app (app ID: appd204ef6957, project: Kalid – DiabEats) is returning a 401 invalidCredentialsError on getOfferings() in production.
+
+All credentials show as Valid in the dashboard
+App v1.3.0 was released today (May 14, 2026)
+Bundle ID and API key have been verified as correct
+No StoreKit Configuration file is set in the release scheme
+RevenueCat API status shows no incidents
+Requesting deeper investigation into why this key is being rejected.
+
+### Category
+
+project_question
+
+### SDK
+
+None
+
+### Affected App User IDs
+
+None
+
+### Affected Project
+
+6649d894
+
+[7J4614-Y4234]

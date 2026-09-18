@@ -13,13 +13,22 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { fetch } from "expo/fetch";
+import { fetch as expoFetch } from "expo/fetch";
+import { router, useLocalSearchParams } from "expo-router";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { getApiSession } from "@/lib/api-session";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAiConsent } from "@/context/AiConsentContext";
 import { chatEventSchema } from "@/shared/ai-safety";
+import { isValidBarcode } from "@/shared/biotrace";
+import { getBioTraceProfileHeaders } from "@/shared/biotrace-rating";
+import { useApp } from "@/context/AppContext";
+
+function chatFetch(...args: Parameters<typeof globalThis.fetch>) {
+  const activeFetch = typeof window === "undefined" ? expoFetch : globalThis.fetch;
+  return activeFetch(...args);
+}
 
 interface Message {
   id: string;
@@ -91,6 +100,10 @@ const FOLLOW_UP_PROMPTS = [
 ];
 
 export default function ChatScreen() {
+  const params = useLocalSearchParams<{
+    biotraceBarcode?: string | string[];
+    biotraceProductName?: string | string[];
+  }>();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -99,6 +112,7 @@ export default function ChatScreen() {
 
   const { isPremium, canAskAi, aiQuestionsToday, AI_QUESTION_LIMIT, showPaywall, incrementAiQuestion } = useSubscription();
   const { requestConsent } = useAiConsent();
+  const { diabetesType, dietGoal, dailyCarbTarget, usesInsulin } = useApp();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -106,6 +120,10 @@ export default function ChatScreen() {
   const [showTyping, setShowTyping] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const rawBioTraceBarcode = Array.isArray(params.biotraceBarcode) ? params.biotraceBarcode[0] : params.biotraceBarcode;
+  const biotraceBarcode = isValidBarcode(rawBioTraceBarcode) ? rawBioTraceBarcode : null;
+  const rawBioTraceProductName = Array.isArray(params.biotraceProductName) ? params.biotraceProductName[0] : params.biotraceProductName;
+  const biotraceProductName = rawBioTraceProductName?.trim().slice(0, 200) || "Selected packaged product";
 
   useEffect(() => {
     return () => {
@@ -167,14 +185,15 @@ export default function ChatScreen() {
         { role: "user", content },
       ];
 
-      const response = await fetch(`${baseUrl}api/chat`, {
+      const response = await chatFetch(`${baseUrl}api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
           Authorization: `Bearer ${session.token}`,
+          ...getBioTraceProfileHeaders({ diabetesType, dietGoal, dailyCarbTarget, usesInsulin }),
         },
-        body: JSON.stringify({ messages: chatHistory }),
+        body: JSON.stringify({ messages: chatHistory, biotraceBarcode: biotraceBarcode ?? undefined }),
         signal: controller.signal,
       });
 
@@ -319,6 +338,28 @@ export default function ChatScreen() {
           )}
         </View>
       </View>
+      {biotraceBarcode ? (
+        <View style={[styles.biotraceContext, { backgroundColor: Colors.brand.goodLight, borderColor: Colors.brand.good }]}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={Colors.brand.primary} />
+          <View style={styles.biotraceContextCopy}>
+            <Text style={[styles.biotraceContextTitle, { color: Colors.brand.primaryDark }]}>BioTrace label context</Text>
+            <Text style={[styles.biotraceContextText, { color: Colors.brand.primaryDark }]} numberOfLines={1}>
+              {biotraceProductName}
+            </Text>
+            <Text style={[styles.biotraceContextNote, { color: Colors.brand.primary }]}>
+              Verified package data is reloaded by DiabEats before each answer.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.replace("/(tabs)/chat")}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Remove BioTrace product context"
+          >
+            <Ionicons name="close" size={18} color={Colors.brand.primary} />
+          </Pressable>
+        </View>
+      ) : null}
 
       {!hasMessages ? (
         <View style={[styles.emptyContainer, { paddingBottom: bottomPadding + 80 }]}>
@@ -329,7 +370,7 @@ export default function ChatScreen() {
             Ask me anything
           </Text>
           <Text style={[styles.emptySubtitle, { color: c.textSecondary }]}>
-             Get educational guidance about dining out with diabetes
+             Get educational guidance about dining out and verified package labels
           </Text>
           {!isPremium && (
             <Pressable
@@ -355,6 +396,26 @@ export default function ChatScreen() {
               </Pressable>
             ))}
           </View>
+          {!biotraceBarcode ? (
+            <Pressable
+              style={[styles.biotraceHelpCard, { backgroundColor: c.cardBg, borderColor: c.border }]}
+              onPress={() => router.push("/(tabs)/saved")}
+              accessibilityRole="button"
+              accessibilityLabel="Choose a saved BioTrace product for label help"
+              accessibilityHint="Open saved BioTrace foods and scans, then choose a product to discuss"
+            >
+              <View style={[styles.biotraceHelpIcon, { backgroundColor: Colors.brand.goodLight }]}>
+                <Ionicons name="barcode-outline" size={19} color={Colors.brand.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.biotraceHelpTitle, { color: c.textPrimary }]}>BioTrace label help</Text>
+                <Text style={[styles.biotraceHelpText, { color: c.textSecondary }]}>
+                  Choose a saved or scanned package for help understanding its verified BioTrace factors.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+            </Pressable>
+          ) : null}
           {canAskAi ? (
             <Pressable
               onPress={() => inputRef.current?.focus()}
@@ -445,10 +506,10 @@ export default function ChatScreen() {
             <TextInput
               ref={inputRef}
               style={[styles.textInput, { color: c.textPrimary }]}
-              placeholder="Type your question..."
+              placeholder={biotraceBarcode ? "Ask about this verified package label..." : "Type your question..."}
               placeholderTextColor={c.textMuted}
               accessibilityLabel="Message the AI Assistant"
-              accessibilityHint="Type a question about dining out with diabetes"
+              accessibilityHint={biotraceBarcode ? "Type a question about this verified BioTrace package label" : "Type a question about dining out with diabetes"}
               value={input}
               onChangeText={setInput}
               multiline
@@ -512,6 +573,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  biotraceContext: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  biotraceContextCopy: { flex: 1 },
+  biotraceContextTitle: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  biotraceContextText: { fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 1 },
+  biotraceContextNote: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 2 },
   headerIcon: {
     width: 32,
     height: 32,
@@ -605,6 +678,25 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 14,
   },
+  biotraceHelpCard: {
+    width: "100%",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 14,
+  },
+  biotraceHelpIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  biotraceHelpTitle: { fontFamily: "Inter_700Bold", fontSize: 14 },
+  biotraceHelpText: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, marginTop: 2 },
   suggestionChip: {
     flexDirection: "row",
     alignItems: "center",

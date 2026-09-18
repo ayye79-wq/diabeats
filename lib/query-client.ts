@@ -1,8 +1,13 @@
-import { fetch } from "expo/fetch";
+import { fetch as expoFetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { clearApiSession, getApiSession } from "@/lib/api-session";
 
 const PRODUCTION_DOMAIN = "diab-eats-1.replit.app";
+
+function requestFetch(...args: Parameters<typeof globalThis.fetch>) {
+  const activeFetch = typeof window === "undefined" ? expoFetch : globalThis.fetch;
+  return activeFetch(...args);
+}
 
 /**
  * Gets the base URL for the Express API server.
@@ -41,10 +46,14 @@ export async function apiRequest(
   method: string,
   route: string,
   data?: unknown | undefined,
+  headers?: Record<string, string>,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
-  const contentHeaders: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  const contentHeaders: Record<string, string> = {
+    ...(data ? { "Content-Type": "application/json" } : {}),
+    ...headers,
+  };
   const requestOptions = {
     method,
     headers: contentHeaders,
@@ -54,7 +63,7 @@ export async function apiRequest(
   let session = await getApiSession(baseUrl);
 
   const makeRequest = (token: string) =>
-    fetch(url.toString(), {
+    requestFetch(url.toString(), {
       ...requestOptions,
     headers: {
       ...requestOptions.headers,
@@ -84,7 +93,7 @@ export const getQueryFn: <T>(options: {
     const baseUrl = getApiUrl();
     const url = new URL(queryKey.join("/") as string, baseUrl);
 
-    const res = await fetch(url.toString(), {
+    const res = await requestFetch(url.toString(), {
       credentials: "include",
     });
 

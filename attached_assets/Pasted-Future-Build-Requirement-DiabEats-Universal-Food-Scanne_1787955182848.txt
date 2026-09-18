@@ -1,0 +1,73 @@
+Future Build Requirement — DiabEats Universal Food Scanner
+
+Improve DiabEats scanning so it is not dependent on Open Food Facts alone.
+
+We tested three real grocery products:
+
+* Kiwi packaged product, UPC 756110195753 → currently works.
+* Yellow onions, UPC 035826086303 → currently not found.
+* Cosmic Crisp fresh apple with produce sticker/barcode → currently not found.
+
+Required lookup pipeline
+
+When a barcode/QR/produce sticker is scanned:
+
+1. Detect the code type first: UPC-A, UPC-E, EAN-8/13, GTIN, PLU/produce code, QR, or other supported format.
+2. Try the existing Open Food Facts lookup.
+3. Do not stop when Open Food Facts returns no result.
+4. Pass the identifier through additional configured food/product data providers where available.
+5. Add a dedicated fresh-produce fallback for fruits and vegetables.
+6. When an exact branded product cannot be identified but the food itself can be reliably identified, return a generic food result such as:
+    * “Yellow onion”
+    * “Apple”
+    * “Kiwi”
+7. Use a reliable nutrition dataset/provider for generic-food nutrition rather than inventing nutrition values.
+8. Clearly distinguish:
+    * Exact product match
+    * Generic food match
+    * Estimated/derived nutrition
+    * Unknown product
+
+Important
+
+Do NOT guess a food solely from an unknown barcode. If the identifier cannot establish what the food is, offer:
+
+* Search by product/food name
+* Take a photo
+* Enter information manually
+
+If DiabEats already has photo/AI food recognition, reuse that existing system rather than creating a duplicate recognition engine.
+
+Architecture
+
+Build the scanner around a provider/fallback abstraction rather than hard-coding everything into the scan screen:
+
+Scan → classify identifier → exact product providers → produce/generic-food lookup → nutrition source → DiabEats analysis
+
+Keep Open Food Facts as one provider, not as the definition of whether a food exists.
+
+Preserve the existing DiabEats scoring/personalization logic. This task should improve identification and nutrition-data retrieval, not silently change the scoring algorithm.
+
+UX
+
+Replace the current dead-end message:
+
+“We couldn’t find that product in Open Food Facts.”
+
+with something user-focused such as:
+
+“We couldn’t find an exact product match. Let’s identify the food another way.”
+
+The user should generally not need to know which backend database failed.
+
+Regression tests
+
+Add these real-world cases to automated/manual scanner testing:
+
+756110195753 — existing kiwi success case
+035826086303 — yellow onion fallback case
+Cosmic Crisp produce sticker — fresh-produce case
+
+Also test an intentionally unknown barcode to confirm DiabEats does not hallucinate a product.
+
+Before implementing, audit the existing scanner, barcode lookup, photo recognition, nutrition providers, caching, and DiabEats scoring flow. Reuse what already exists and report what needs to change. Do not introduce paid APIs or new recurring services without approval.

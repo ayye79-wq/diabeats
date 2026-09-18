@@ -1,0 +1,27 @@
+Here's what I found after investigating:
+
+✅ Everything looks correct on the RevenueCat side
+Check	Status
+API key appl_uSpLBmaIfBYmyUVOAMiXGxNGbhN exists	✅ Valid, production environment
+Key linked to correct app	✅ Mapped to "DiabEats (App Store)" (appd204ef6957)
+Bundle ID com.diabeats.app	✅ Matches both RevenueCat config and App Store listing
+App Store Connect API key	✅ Configured
+Subscription key (shared secret)	✅ Configured
+RevenueCat API status	✅ All systems operational
+Your credentials are valid on our end — the 401 is likely caused by a mismatch in how the SDK is being configured in your app code.
+
+Likely causes to check
+Bundle ID mismatch in the built binary — You released v1.3.0 just now (17:09 UTC today). Double-check that the production build's bundle identifier in Xcode (PRODUCT_BUNDLE_IDENTIFIER) exactly matches com.diabeats.app — even a trailing space or different case will cause a 401.
+
+Wrong API key in production code — Verify your Purchases.configure(withAPIKey:) call uses exactly appl_uSpLBmaIfBYmyUVOAMiXGxNGbhN (not a test key, not a key from your Play Store app, and no extra characters).
+
+StoreKit Configuration file override — If your Xcode scheme has a StoreKit Configuration file set, the SDK may behave unexpectedly in production. Make sure this is unchecked in your Release scheme.
+
+Timing after release — New in-app products can take up to 24 hours to propagate after a new app release. If you added new products with this release, offerings may be temporarily empty (though this usually doesn't cause a 401).
+
+Recommended next steps
+Add a debug log to print the exact API key string being passed at configure time in your production build.
+Confirm the bundle ID in your .ipa / Archive matches exactly.
+If you're using different environments (debug vs release), ensure the correct key is compiled into the release build.
+Would you like me to create a support ticket for deeper investigation, or does one of these point you in the right direction?
+

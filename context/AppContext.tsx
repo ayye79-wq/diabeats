@@ -40,7 +40,7 @@ interface AppContextValue {
   dietPreference: DietPreference;
   dietGoal: DietGoal;
   diabetesType: DiabetesType;
-  dailyCarbTarget: number;
+  dailyCarbTarget: number | null;
   usesInsulin: boolean;
   onboardingComplete: boolean;
   mealLog: MealLogEntry[];
@@ -53,7 +53,7 @@ interface AppContextValue {
   setDietPreference: (pref: DietPreference) => void;
   setDietGoal: (goal: DietGoal) => void;
   setDiabetesType: (type: DiabetesType) => void;
-  setDailyCarbTarget: (target: number) => void;
+  setDailyCarbTarget: (target: number | null) => void;
   setUsesInsulin: (uses: boolean) => void;
   completeOnboarding: () => void;
   logMeal: (entry: Omit<MealLogEntry, "id" | "loggedAt">) => void;
@@ -80,7 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dietPreference, setDietPreferenceState] = useState<DietPreference>("none");
   const [dietGoal, setDietGoalState] = useState<DietGoal>("balanced");
   const [diabetesType, setDiabetesTypeState] = useState<DiabetesType>(null);
-  const [dailyCarbTarget, setDailyCarbTargetState] = useState<number>(45);
+  const [dailyCarbTarget, setDailyCarbTargetState] = useState<number | null>(null);
   const [usesInsulin, setUsesInsulinState] = useState<boolean>(false);
   const [onboardingComplete, setOnboardingCompleteState] = useState<boolean>(false);
   const [mealLog, setMealLog] = useState<MealLogEntry[]>([]);
@@ -120,7 +120,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (profile) {
           const parsedProfile = JSON.parse(profile);
           if (parsedProfile.diabetesType) setDiabetesTypeState(parsedProfile.diabetesType);
-          if (parsedProfile.dailyCarbTarget !== undefined) setDailyCarbTargetState(parsedProfile.dailyCarbTarget);
+          if (
+            parsedProfile.dailyCarbTarget === null ||
+            (typeof parsedProfile.dailyCarbTarget === "number" &&
+              Number.isFinite(parsedProfile.dailyCarbTarget) &&
+              parsedProfile.dailyCarbTarget > 0)
+          ) {
+            // Preserve existing numeric targets while allowing users to opt out.
+            setDailyCarbTargetState(parsedProfile.dailyCarbTarget);
+          }
           if (parsedProfile.usesInsulin !== undefined) setUsesInsulinState(parsedProfile.usesInsulin);
         }
 
@@ -186,7 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const setDailyCarbTarget = useCallback((target: number) => {
+  const setDailyCarbTarget = useCallback((target: number | null) => {
     setDailyCarbTargetState(target);
     AsyncStorage.mergeItem(
       DIABETES_PROFILE_KEY,

@@ -24,15 +24,23 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "autoIncrement": true
+        "autoIncrement": false
       }
     }
   },
   "submit": {
     "production": {
+      "android": {
+        "serviceAccountKeyPath": "./.eas/google-play-service-account.json",
+        "track": "alpha",
+        "releaseStatus": "completed"
+      },
       "ios": {
         "ascAppId": "6760898764",
-        "appleTeamId": "RGU32A7465"
+        "appleTeamId": "RGU32A7465",
+        "ascApiKeyPath": "./.eas/asc-api-key.p8",
+        "ascApiKeyId": "SM76G8XF2X",
+        "ascApiKeyIssuerId": "75b889e9-f840-4780-883d-80e4a53557d0"
       }
     }
   }

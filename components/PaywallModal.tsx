@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -38,8 +38,8 @@ const TRIGGER_COPY: Record<PaywallTrigger, { title: string; subtitle: string }> 
     subtitle: "Let AI choose the safest, most diabetes-friendly meal for you.",
   },
   "meal-simulator": {
-    title: "Blood Sugar Simulator is Premium",
-    subtitle: "Customize ingredients and get a glucose prediction before you eat.",
+    title: "Meal Impact Explorer is Premium",
+    subtitle: "Compare ingredient patterns with educational meal-impact guidance before you eat.",
   },
   "general": {
     title: "Upgrade to DiabEats Premium",
@@ -68,6 +68,10 @@ export function PaywallModal() {
     purchaseMonthly,
     purchaseAnnual,
     restorePurchases,
+    refreshStoreOptions,
+    subscriptionPlans,
+    storeOptionsLoading,
+    storeOptionsError,
   } = useSubscription();
 
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("annual");
@@ -78,6 +82,32 @@ export function PaywallModal() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const maxContentWidth = Math.min(width, 540);
+  const monthlyPlan = subscriptionPlans.monthly;
+  const annualPlan = subscriptionPlans.annual;
+  const selectedPlanDetails = selectedPlan === "monthly" ? monthlyPlan : annualPlan;
+  useEffect(() => {
+    if (selectedPlan === "annual" && !annualPlan && monthlyPlan) {
+      setSelectedPlan("monthly");
+    } else if (selectedPlan === "monthly" && !monthlyPlan && annualPlan) {
+      setSelectedPlan("annual");
+    }
+  }, [annualPlan, monthlyPlan, selectedPlan]);
+  const annualSavings =
+    monthlyPlan &&
+    annualPlan &&
+    monthlyPlan.currencyCode === annualPlan.currencyCode &&
+    monthlyPlan.price > 0 &&
+    annualPlan.price > 0
+      ? Math.round((1 - annualPlan.price / (monthlyPlan.price * 12)) * 100)
+      : null;
+  const annualMonthlyEquivalent =
+    annualPlan && annualPlan.price > 0 && annualPlan.currencyCode
+      ? new Intl.NumberFormat(undefined, {
+          style: "currency",
+          currency: annualPlan.currencyCode,
+          maximumFractionDigits: 2,
+        }).format(annualPlan.price / 12)
+      : null;
   const dismissPaywall = () => {
     setPurchasing(false);
     hidePaywall();
@@ -93,6 +123,10 @@ export function PaywallModal() {
         await purchaseAnnual();
       }
     } catch (e: any) {
+      if (e.code === "purchase_pending_activation") {
+        Alert.alert("Purchase Confirmed", e.message);
+        return;
+      }
       const code = e.code != null ? ` (code ${e.code})` : "";
       Alert.alert("Purchase Failed", (e.message ?? "Something went wrong. Please try again.") + code);
     } finally {
@@ -104,6 +138,17 @@ export function PaywallModal() {
     setPurchasing(true);
     try {
       await restorePurchases();
+      Alert.alert("Premium Restored", "Your DiabEats Premium access is active.");
+    } catch (e: any) {
+      if (e.code === "nothing_to_restore") {
+        Alert.alert("No Active Purchase Found", e.message);
+        return;
+      }
+      if (e.code === "purchase_pending_activation") {
+        Alert.alert("Purchase Found", e.message);
+        return;
+      }
+      Alert.alert("Restore Failed", e.message ?? "Could not restore purchases. Wait a moment and try again.");
     } finally {
       setPurchasing(false);
     }
@@ -145,10 +190,12 @@ export function PaywallModal() {
 
           <Text style={[styles.appTitle, { color: Colors.brand.primary }]}>DiabEats Premium</Text>
 
-          <View style={[styles.trialBanner, { backgroundColor: Colors.brand.primary + "15", borderColor: Colors.brand.primary + "40" }]}>
-            <Ionicons name="gift-outline" size={16} color={Colors.brand.primary} />
-            <Text style={[styles.trialBannerText, { color: Colors.brand.primary }]}>Try free for 7 days — no charge until then</Text>
-          </View>
+          {selectedPlanDetails?.introOfferText && (
+            <View style={[styles.trialBanner, { backgroundColor: Colors.brand.primary + "15", borderColor: Colors.brand.primary + "40" }]}>
+              <Ionicons name="gift-outline" size={16} color={Colors.brand.primary} />
+              <Text style={[styles.trialBannerText, { color: Colors.brand.primary }]}>{selectedPlanDetails.introOfferText}</Text>
+            </View>
+          )}
 
           <Text style={[styles.triggerTitle, { color: c.textPrimary }]}>{copy.title}</Text>
           <Text style={[styles.triggerSubtitle, { color: c.textMuted }]}>{copy.subtitle}</Text>
@@ -178,7 +225,7 @@ export function PaywallModal() {
                 <View style={[styles.planDot, { backgroundColor: Colors.brand.primary }]} />
               )}
               <Text style={[styles.planLabel, { color: c.textMuted }]}>Monthly</Text>
-              <Text style={[styles.planPrice, { color: c.textPrimary }]}>$6.99</Text>
+              <Text style={[styles.planPrice, { color: c.textPrimary }]}>{monthlyPlan?.priceString ?? "In app"}</Text>
               <Text style={[styles.planPeriod, { color: c.textMuted }]}>per month</Text>
             </Pressable>
 
@@ -190,40 +237,52 @@ export function PaywallModal() {
               ]}
               onPress={() => setSelectedPlan("annual")}
             >
-              <View style={[styles.saveBadge, { backgroundColor: Colors.brand.primary }]}>
-                <Text style={styles.saveBadgeText}>Save 30%</Text>
-              </View>
+              {annualSavings && annualSavings > 0 && (
+                <View style={[styles.saveBadge, { backgroundColor: Colors.brand.primary }]}>
+                  <Text style={styles.saveBadgeText}>Save {annualSavings}%</Text>
+                </View>
+              )}
               {selectedPlan === "annual" && (
                 <View style={[styles.planDot, { backgroundColor: Colors.brand.primary }]} />
               )}
               <Text style={[styles.planLabel, { color: c.textMuted }]}>Annual</Text>
-              <Text style={[styles.planPrice, { color: c.textPrimary }]}>$59.99</Text>
+              <Text style={[styles.planPrice, { color: c.textPrimary }]}>{annualPlan?.priceString ?? "In app"}</Text>
               <Text style={[styles.planPeriod, { color: c.textMuted }]}>per year</Text>
-              <Text style={[styles.planEquiv, { color: Colors.brand.primary }]}>$5.00/mo</Text>
+              {annualMonthlyEquivalent && <Text style={[styles.planEquiv, { color: Colors.brand.primary }]}>{annualMonthlyEquivalent}/mo</Text>}
             </Pressable>
           </View>
 
           <Pressable
-            style={[styles.subscribeBtn, { backgroundColor: Colors.brand.primary }, purchasing && styles.subscribeBtnDisabled]}
-            onPress={handleSubscribe}
-            disabled={purchasing}
+            style={[styles.subscribeBtn, { backgroundColor: Colors.brand.primary }, (purchasing || storeOptionsLoading) && styles.subscribeBtnDisabled]}
+            onPress={selectedPlanDetails ? handleSubscribe : refreshStoreOptions}
+            disabled={purchasing || storeOptionsLoading || Platform.OS === "web"}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: purchasing || storeOptionsLoading || Platform.OS === "web", busy: purchasing || storeOptionsLoading }}
           >
-            {purchasing ? (
+            {purchasing || storeOptionsLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
                 <Ionicons name="gift-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
                 <Text style={styles.subscribeBtnText}>
-                  Start 7-Day Free Trial
+                  {selectedPlanDetails?.introOfferText
+                    ? "Start free trial"
+                    : selectedPlanDetails
+                      ? "Continue to secure checkout"
+                      : Platform.OS === "web"
+                        ? "Purchases available in mobile app"
+                          : "Retry App Store options"}
                 </Text>
               </>
             )}
           </Pressable>
 
           <Text style={[styles.trialNote, { color: c.textMuted }]}>
-            {selectedPlan === "monthly"
-              ? "Free for 7 days, then $6.99/month. Cancel anytime."
-              : "Free for 7 days, then $59.99/year ($5.00/mo). Cancel anytime."}
+            {selectedPlanDetails
+              ? `${selectedPlanDetails.introOfferText ? `${selectedPlanDetails.introOfferText}. ` : ""}Billed by Apple or Google Play. Cancel anytime.`
+              : storeOptionsLoading
+                ? "Loading current App Store pricing…"
+                : storeOptionsError ?? "Store pricing and purchases are available in the iOS or Android app."}
           </Text>
 
           <Pressable style={styles.restoreBtn} onPress={handleRestore} disabled={purchasing}>

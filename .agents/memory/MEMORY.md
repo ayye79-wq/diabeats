@@ -2,3 +2,26 @@
 - [Post-merge dependency recovery](post-merge-dependency-recovery.md) — keep the safe shell-quote override so deterministic post-merge installs pass the package firewall.
 - [BioTrace data integrity](biotrace-data-integrity.md) — reconstruct barcode-backed ratings server-side and never persist label photos.
 - [Expo security maintenance](expo-54-dependency-compatibility.md) — Expo SDK upgrades require release-sized validation; current vendor audit exceptions are explicit and time-bounded.
+- [GitHub Actions log access](github-actions-log-access.md) — the connected GitHub account can inspect run metadata but may be blocked from protected step logs; use redacted user-provided stderr for opaque action failures.
+- [Autoscale port contract](autoscale-port-contract.md) — production commands must honor Replit’s supplied PORT; forcing a development port can block the publish readiness probe.
+- [Promotional video template](diabeats-promo-video-template.md) — presentation stays modular and never changes the approval-first TikTok workflow.
+- [Expo browser testing](expo-browser-testing.md) — use the bundled playwright/test runner and the dedicated browser tester when local Chromium lacks system libraries.
+- [Expo web transport testing](expo-web-transport-testing.md) — choose browser fetch at request time, not module load, in static Expo exports to keep Playwright routing reliable.
+- [Native DevTools dependency cascades](react-native-devtools-linux-runtime.md) — a first missing shared library can mask the rest of a desktop DevTools runtime.
+- [React Native Web filter accessibility](react-native-web-filter-accessibility.md) — selectable Pressables need explicit web ARIA state alongside native accessibilityState.
+- [Google Play credential handling](google-play-credential-rotation.md) — keep Play keys in managed secrets and materialize them only briefly in an ignored local path for submission.
+- [Expo Go public routing](expo-go-public-routing.md) — route native manifests, Metro bundles, and Metro asset URLs through the public Replit backend.
+- [Native splash resilience](native-splash-resilience.md) — never let an optional startup asset keep DiabEats on a blank native splash screen indefinitely.
+- [Expo static app deep links](expo-static-app-deep-links.md) — web preview (`/`, `/app`) serves a pre-built static export, not live Metro; run `npm run expo:static:build` before screenshotting/testing UI changes.
+- [Apple ASC credential handling](apple-asc-credential-handling.md) — keep iOS credentials ephemeral; current EAS CLI exposes structured submission list/view commands for safe polling.
+- [Multilingual ingredient evidence](off-multilingual-ingredients.md) — use provider taxonomy for OFF products, but reviewed aliases and immutable OCR text for label photos.
+- [Expo static build staleness](expo-static-build-staleness.md) — the web preview serves a prebuilt static export; only frontend/component changes need a rebuild, not backend-only changes.
+- [Testing subagent cache false negatives](testing-subagent-cache-false-negatives.md) — a persistent tester's browser can serve stale data; confirm suspicious repeats with a direct API call or a brand-new subagent before trusting a "failure" verdict.
+- [RevenueCat startup recovery](revenuecat-startup-recovery.md) — purchase actions must initialize RevenueCat on demand; TestFlight users can reach the paywall before startup setup completes.
+- [App Store review submission](app-store-review-submission.md) — uploaded builds still need a store version, required release metadata, and Apple’s current Review Submissions flow.
+- [Android EAS release queue](android-eas-release-queue.md) — Android store builds can spend several minutes queued or compiling; track one exact build ID and submit only after FINISHED.
+- [Android media permission releases](android-media-permission-releases.md) — verify Photo Picker compliance in the finished AAB and replace noncompliant bundles on every Play track.
+- [BioTrace provider approval](biotrace-provider-approval.md) — document terms, limits, availability, returned data, and commercial use before adding any provider or dependency.
+- [BioTrace profile personalization](biotrace-profile-personalization.md) — reweight verified facts transiently; never persist profile-derived rating text or infer nutrition thresholds from insulin use.
+- [USDA generic search requests](usda-generic-search-throttling.md) — use serialized JSON POST searches with bounded retries; parallel GET searches can return intermittent HTTP 400 responses.
+- [BioTrace reference-gap telemetry](biotrace-reference-gap-telemetry.md) — every result that exposes ingredient analysis contributes aggregate-only unclassified dimensions.

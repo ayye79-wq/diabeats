@@ -1,0 +1,121 @@
+1. USDA food-data fallback
+
+When Open Food Facts cannot find a product or generic food, DiabEats now searches USDA FoodData Central.
+
+This supports foods without ordinary barcodes, such as:
+
+Yellow onion
+Kiwi
+Apples
+Generic produce
+Other basic foods
+
+Important behavior:
+
+Verified USDA nutrition data is used.
+Missing nutrients remain unknown—they are not changed to zero.
+DiabEats does not invent nutrition values.
+The result identifies USDA FoodData Central as the source.
+A USDA source link appears on the result page.
+
+New configuration required:
+
+USDA_FDC_API_KEY
+
+Relevant files:
+
+server/services/usda-fooddata-central.ts
+tests/usda-fooddata-central.test.ts
+app/(tabs)/biotrace.tsx
+components/BioTraceResult.tsx
+server/routes.ts
+shared/biotrace.ts
+2. BioTrace scanning was stabilized
+
+The scanner now distinguishes among:
+
+UPC/EAN/GTIN barcodes
+Open Food Facts product URLs
+Product or produce names
+DiabEats test-menu QR codes
+Unsupported or malformed data
+
+Important safety behavior:
+
+Exact barcode → exact product lookup.
+Food name → product search, not a guessed product.
+Unknown result → clearly reported as unknown.
+Test-menu UI opens only for the explicit schema:
+diabeats.test.menu.v1
+Random JSON, malformed URLs, and unsupported QR content should not be mistaken for products or menus.
+3. Offline/cached barcode fallback
+
+If Open Food Facts is temporarily unavailable, DiabEats can use a previously cached verified product.
+
+The response is marked internally as:
+
+cached: true
+stale: true
+
+This makes scanning more reliable without manufacturing new data.
+
+4. Local scan history improvements
+Local BioTrace history can now be retrieved and displayed.
+Rapid duplicate scans of the same barcode within approximately 30 seconds are removed.
+Pending offline scans remain available for later synchronization.
+Saved/history behavior was stabilized.
+5. Onboarding simplified
+
+Onboarding was reduced from five steps to four.
+
+The preset carbohydrate-target step was removed because DiabEats should not assign a personal medical target. The new wording tells users to add a carbohydrate target only when it comes from their care plan.
+
+The final message now describes the app as providing educational food insights—not medical treatment or prediction.
+
+6. Safer result language
+
+The displayed classifications changed:
+
+Previous wording	Current wording
+Better Fit	Better choice
+Use with Caution	Moderate impact
+Limit	Higher impact
+Insufficient Information	Not enough information
+
+The app should continue presenting meal patterns and food-impact guidance, not claiming to predict an exact glucose increase.
+
+7. Restaurant test data cleanup
+
+The restaurant data was reorganized into defined types and exports.
+
+Important clarification:
+
+DiabEats does not automatically import restaurants.
+Missing restaurants or menus are submitted by users.
+Test restaurants such as “The Green Fork” are not proof of automatic importing.
+Automatic restaurant discovery remains a future idea, not a completed feature.
+8. Android permission/compliance protection
+
+The Android version should:
+
+Use the system photo picker.
+Avoid READ_MEDIA_IMAGES.
+Avoid READ_MEDIA_VIDEO.
+Request camera permission only when camera scanning is used.
+
+This was important because Google Play previously rejected the app over media permissions.
+
+9. Dependency/build stability
+
+These packages were pinned to exact compatible versions:
+
+"react-native-reanimated": "4.5.1",
+"react-native-worklets": "0.10.1"
+
+Additional test scripts were added for:
+
+BioTrace
+QR/scan input
+USDA normalization
+End-to-end testing
+Content-agent/TikTok functions

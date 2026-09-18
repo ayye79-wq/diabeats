@@ -2,19 +2,19 @@
   "expo": {
     "name": "DiabEats",
     "slug": "diabeats",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-polished.png",
     "scheme": "diabeats",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.diabeats.app",
-      "buildNumber": "36",
+      "buildNumber": "45",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "DiabEats uses your camera to scan restaurant menus and packaged-food barcodes, helping you review public label information and diabetes-conscious food patterns.",
-        "NSPhotoLibraryUsageDescription": "DiabEats allows you to upload menu photos from your library to analyze food items and provide blood sugar impact insights and meal recommendations.",
+        "NSCameraUsageDescription": "DiabEats uses your camera to scan restaurant menus and packaged-food barcodes or QR codes, helping you review public label information and diabetes-conscious food patterns.",
+        "NSPhotoLibraryUsageDescription": "DiabEats allows you to upload menu or packaged-food label photos from your library for educational food insights.",
         "NSLocationWhenInUseUsageDescription": "DiabEats uses your location to show nearby diabetes-friendly restaurants and safe meal options.",
         "NSUserNotificationsUsageDescription": "DiabEats can send you daily reminders to check safe meal options before dining out.",
         "UIBackgroundModes": [
@@ -24,12 +24,20 @@
     },
     "android": {
       "package": "com.diabeats.android",
-      "versionCode": 2,
+      "versionCode": 9,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#0E2016",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#092718",
+        "foregroundImage": "./assets/images/polished/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/polished/android-icon-background.png",
+        "monochromeImage": "./assets/images/polished/android-icon-monochrome.png"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -41,7 +49,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/polished/favicon.png"
     },
     "plugins": [
       [
@@ -55,16 +63,26 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "DiabEats allows you to upload menu photos from your library to analyze food items and provide blood sugar impact insights.",
-          "cameraPermission": "DiabEats uses your camera to scan restaurant menus and analyze dishes to estimate blood sugar impact."
+          "photosPermission": "DiabEats allows you to upload menu or packaged-food label photos from your library for educational food insights.",
+          "cameraPermission": "DiabEats uses your camera to scan restaurant menus and packaged-food labels for educational food insights.",
+          "microphonePermission": false
         }
       ],
-       [
-         "expo-camera",
-         {
-           "cameraPermission": "DiabEats uses your camera to scan packaged-food barcodes and restaurant menus."
-         }
-       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "DiabEats uses your camera to scan packaged-food barcodes or QR codes and restaurant menus.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/polished/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#092718"
+        }
+      ],
       [
         "expo-location",
         {
@@ -75,7 +93,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/polished/android-icon-monochrome.png",
           "color": "#1A5C2E",
           "sounds": []
         }

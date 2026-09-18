@@ -85,7 +85,7 @@ export function RestaurantCard({ restaurant, onPress, saved, onToggleSave }: Pro
               },
             ]}
           >
-            {goodCount} of {total} safe
+            {goodCount} of {total} better choices
           </Text>
         </View>
       </View>

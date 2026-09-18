@@ -4,7 +4,7 @@ import { z } from "zod";
  * BioTrace shared types and zod schemas.
  *
  * These describe the normalized product/nutrition contract that the server
- * derives from the Open Food Facts public API and the deterministic rating
+ * derives from approved food-data providers and the deterministic rating
  * output produced by shared/biotrace-rating.ts. Nothing here is AI-generated;
  * every value is either copied from the provider or deterministically computed.
  */
@@ -23,6 +23,63 @@ export const barcodeSchema = z
 
 export function isValidBarcode(value: unknown): value is string {
   return barcodeSchema.safeParse(value).success;
+}
+
+// ---------------------------------------------------------------------------
+// Resolver evidence
+// ---------------------------------------------------------------------------
+
+export const identifierEvidenceTypeSchema = z.enum([
+  "gtin",
+  "gs1-gtin",
+  "human-readable-plu",
+  "retailer-specific-produce-id",
+  "branded-produce-sticker",
+  "provider-name-match",
+  "label-photo",
+  "unknown",
+]);
+export type IdentifierEvidenceType = z.infer<typeof identifierEvidenceTypeSchema>;
+
+export const resolverConfidenceSchema = z.enum([
+  "provider-confirmed",
+  "provider-supported",
+  "user-supplied",
+  "unknown",
+]);
+export type ResolverConfidence = z.infer<typeof resolverConfidenceSchema>;
+
+export const productResolutionSchema = z
+  .object({
+    kind: z.enum(["exact", "generic", "estimated", "confirmation-required", "unknown"]),
+    evidenceType: identifierEvidenceTypeSchema,
+    confidence: resolverConfidenceSchema,
+    confirmationRequired: z.boolean(),
+    explanation: trimmed(360),
+  })
+  .strict();
+export type ProductResolution = z.infer<typeof productResolutionSchema>;
+
+export type IdentifierOrigin = "camera" | "manual" | "qr";
+
+export type ClassifiedIdentifier =
+  | { kind: "gtin"; value: string; evidenceType: "gtin" }
+  | { kind: "human-readable-plu"; value: string; evidenceType: "human-readable-plu" }
+  | { kind: "unsupported"; value: string; evidenceType: "unknown" };
+
+/**
+ * A short numeric value is treated as a human-readable PLU only when the user
+ * explicitly enters it. Camera output never becomes a PLU by inference.
+ */
+export function classifyBioTraceIdentifier(value: string, origin: IdentifierOrigin): ClassifiedIdentifier {
+  const trimmedValue = value.trim();
+  if (/^\d{8,14}$/u.test(trimmedValue)) {
+    return { kind: "gtin", value: trimmedValue, evidenceType: "gtin" };
+  }
+  if (origin === "manual" && /^\d{4,5}$/u.test(trimmedValue)) {
+    return { kind: "human-readable-plu", value: trimmedValue, evidenceType: "human-readable-plu" };
+  }
+  return { kind: "unsupported", value: trimmedValue, evidenceType: "unknown" };
 }
 
 // ---------------------------------------------------------------------------
@@ -118,19 +175,61 @@ export type GmoAssessment = z.infer<typeof gmoAssessmentSchema>;
 // Provider source attribution
 // ---------------------------------------------------------------------------
 
-export const productSourceSchema = z
+const sourceFreshnessSchema = z.enum(["live", "fresh-cache", "stale-cache"]);
+const sourceBaseSchema = {
+  /** Canonical URL for the product on the provider. */
+  url: z.string().url().nullable(),
+  /** ISO timestamp when this record was fetched/normalized. */
+  retrievedAt: z.string().datetime(),
+  /** How this response reached the user. Older persisted rows may omit it. */
+  freshness: sourceFreshnessSchema.optional(),
+};
+
+export const productSourceSchema = z.discriminatedUnion("provider", [
+  z
+    .object({
+      provider: z.literal("open-food-facts"),
+      ...sourceBaseSchema,
+      /** OFF data-completeness score if provided, else null. */
+      completeness: z.number().finite().min(0).max(1).nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      provider: z.literal("usda-fooddata-central"),
+      ...sourceBaseSchema,
+      completeness: z.null(),
+      /** USDA FoodData Central record identifier and data type. */
+      fdcId: z.number().int().positive(),
+      dataType: z.enum(["Branded", "Foundation", "SR Legacy", "Survey (FNDDS)"]),
+      publicationDate: z.string().trim().max(40).nullable(),
+      modifiedDate: z.string().trim().max(40).nullable(),
+    })
+    .strict(),
+]);
+
+export type ProductSource = z.infer<typeof productSourceSchema>;
+
+// ---------------------------------------------------------------------------
+// Structured (taxonomy-backed) ingredients
+// ---------------------------------------------------------------------------
+
+/**
+ * One entry from Open Food Facts' `ingredients` taxonomy array: a
+ * language-agnostic canonical id (e.g. "en:sugar", "en:e322") alongside the
+ * original, possibly non-English, label text (e.g. "Sucre"). Using the
+ * canonical id lets the ingredient-explanation engine recognize an
+ * ingredient regardless of the product's label language, without inventing
+ * or guessing a translation.
+ */
+export const structuredIngredientSchema = z
   .object({
-    provider: z.enum(["open-food-facts", "usda-fooddata-central"]),
-    /** Canonical URL for the product on the provider. */
-    url: z.string().url().nullable(),
-    /** ISO timestamp when this record was fetched/normalized. */
-    retrievedAt: z.string().datetime(),
-    /** OFF data-completeness score if provided, else null. */
-    completeness: z.number().finite().min(0).max(1).nullable(),
+    id: trimmed(160),
+    text: trimmed(200).nullable(),
   })
   .strict();
 
-export type ProductSource = z.infer<typeof productSourceSchema>;
+export type StructuredIngredient = z.infer<typeof structuredIngredientSchema>;
 
 // ---------------------------------------------------------------------------
 // Normalized product
@@ -145,6 +244,8 @@ export const normalizedProductSchema = z
     categories: z.array(trimmed(120)).max(40),
     imageAvailable: z.boolean(),
     ingredientsText: z.string().trim().max(6000).nullable(),
+    /** Flattened taxonomy-backed ingredients (language-agnostic), when the provider supplied them. */
+    ingredientsStructured: z.array(structuredIngredientSchema).max(120).nullable(),
     nutrition: nutritionFactsSchema,
     ingredients: ingredientIndicatorSchema,
     gmo: gmoAssessmentSchema,
@@ -152,6 +253,8 @@ export const normalizedProductSchema = z
     novaGroup: z.number().int().min(1).max(4).nullable(),
     nutriScore: z.enum(["a", "b", "c", "d", "e"]).nullable(),
     source: productSourceSchema,
+    /** Optional for backward compatibility with normalized rows cached before the universal resolver. */
+    resolution: productResolutionSchema.optional(),
   })
   .strict();
 

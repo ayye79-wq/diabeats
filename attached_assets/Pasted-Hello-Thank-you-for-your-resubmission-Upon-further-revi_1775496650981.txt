@@ -1,0 +1,68 @@
+Hello,
+
+Thank you for your resubmission. Upon further review, we identified additional issues that need your attention. See below for more information.
+
+If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+Review Environment
+Submission ID: ccdd2479-f461-4aa0-b018-a5179a3a68fa
+Review date: April 06, 2026
+Review Device: iPad Air 11-inch (M3)
+Version reviewed: 1.0
+
+Guideline 2.1(b) - Performance - App Completeness
+
+Issue Description
+
+The In-App Purchase products in the app exhibited one or more bugs which create a poor user experience. Specifically, an error message appeared when we attempted to purchase a subscription. Review the details and resources below to troubleshoot this issue.
+
+Review device details: 
+
+- Device type: iPad Air 11-inch (M3) 
+- OS version: iPadOS 26.4
+
+Next Steps
+
+Apple reviews In-App Purchase products in the sandbox and the In-App Purchase products do not need prior approval to function in review. Review the product configurations, complete any missing information, and test them in the sandbox.
+
+To offer In-App Purchases in the app, the Account Holder must also accept the Paid Apps Agreement in the Business section of App Store Connect. Confirm you have a Paid Apps Agreement in effect.
+
+If you still need assistance after completing the steps and reviewing the resources, visit the Apple Developer Forums. If you can’t find an answer from an existing thread, start a new thread with your question to get guidance from Apple engineers and other developers.
+
+Resources
+
+Learn more about app completeness requirements in guideline 2.1(b).
+Guideline 4 - Design
+
+Issue Description
+
+Parts of the app's user interface were crowded, laid out, or displayed in a way that made it difficult to use the app when reviewed on iPad Air 11-inch (M3) running iPadOS 26.4.
+
+Specifically, text and buttons overlapped on iPad.
+
+Next Steps
+
+To resolve this issue, revise the app to ensure that the content and controls on the screen are easy to read and interact with.
+
+Note that users expect apps they download to function on all the devices where they are available. For example, apps that may be downloaded onto iPad devices should function as expected for iPad users. Learn more about supporting apps on compatible devices.
+
+Resources
+
+- Learn foundational design principles from Apple designers and the developer community.
+- See documentation for the UIKit framework.
+- Learn more about design requirements in guideline 4.
+Guideline 1.4.1 - Safety - Physical Harm
+
+Issue Description
+
+The app includes medical information but does not include citations for the medical information. 
+
+Specifically, the app provides diet recommendations without citations, such as links to sources for this information.
+
+All apps with medical and health information should include citations to ensure users are provided accurate information.
+
+Next Steps
+
+Include citations in the app of the sources of the recommendations or information, such as links to those sources. The citations to the sources should be easy for the user to find. 
+
+Resources 

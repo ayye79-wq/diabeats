@@ -1,0 +1,45 @@
+Yes—#67 can fix the app-side problem, and it’s a well-scoped issue. But I would make three important corrections before letting Replit execute it.
+
+Change:
+
+version code greater than the currently released build
+
+to:
+
+version code greater than the highest version code ever uploaded to any Play Console track
+
+A version code only needs to have been uploaded—not released—to become unavailable for reuse.
+
+Require inspection of the actual finished AAB, not only Expo configuration or a generated prebuild manifest:
+
+Inspect the final production AAB with Android build-analysis tooling and confirm the base manifest contains none of:
+
+android.permission.READ_MEDIA_IMAGES
+android.permission.READ_MEDIA_VIDEO
+unrestricted android.permission.READ_EXTERNAL_STORAGE
+unnecessary android.permission.RECORD_AUDIO
+
+Expo dependencies can introduce permissions during native manifest merging. android.blockedPermissions can explicitly remove permissions introduced by libraries. Expo permissions documentation, Expo app configuration.
+
+Add this release handoff requirement:
+
+Report every Play Console track that still contains version code 2 or another noncompliant bundle. Do not submit automatically, but explain exactly which old release must be replaced, deactivated, or excluded before resubmission.
+
+The code fix cannot remove version code 2 from Play Console by itself. That is a separate console action.
+
+My verdict:
+
+System Photo Picker: correct
+No media-library permission request: correct
+Camera remains camera-only: correct
+Both menu and BioTrace photo flows covered: correct
+Regression tests: correct
+New AAB without automatic submission: correct
+Narrow scope: correct
+Missing piece: actual AAB inspection and old version-code track cleanup
+
+Add this acceptance criterion:
+
+The issue is not complete until the finished AAB—not merely app.json, resolved Expo config, or a prebuild manifest—has been inspected and the prohibited permissions are proven absent. Report the AAB version code, build ID, artifact location, and complete Android permission list without exposing credentials.
+
+After those changes, #67 is the right fix to implement. Then you’ll upload that compliant AAB and remove version code 2 from the affected submission/track before sending it back for review.

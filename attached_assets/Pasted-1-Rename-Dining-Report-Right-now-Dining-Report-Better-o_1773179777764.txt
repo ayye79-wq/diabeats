@@ -1,0 +1,162 @@
+1️⃣ Rename “Dining Report”
+
+Right now:
+
+Dining Report
+
+Better options:
+
+Best choice
+Weekly Health Summary
+Alternative
+Diabetes Dining Summary
+Clinical style
+Meal Impact Summary
+
+Recommendation:
+Use Weekly Health Summary — it is simple and friendly.
+
+2️⃣ Profile Card (Current Weekly Summary Card)
+
+Replace the text with something like this.
+
+Card Title
+Weekly Health Summary
+Summary sentence
+
+Dynamic text example:
+
+This week most of your restaurant meals were low blood sugar impact choices.
+
+If moderate:
+
+Your dining choices this week were mostly moderate blood sugar impact.
+
+If poor:
+
+Several meals this week may have higher blood sugar impact.
+
+That one sentence is very powerful behavior feedback.
+
+3️⃣ Stats layout
+
+Current stats:
+
+Safe
+Moderate
+Avoid
+
+Make them clearer:
+
+Safe Choices
+Moderate Impact
+Higher Impact
+
+Example:
+
+Safe Choices: 8
+Moderate Impact: 3
+Higher Impact: 1
+4️⃣ Best Meal Section
+
+Instead of:
+
+Best meal this week
+
+Use:
+
+Best Diabetes-Friendly Choice
+
+Example:
+
+Best Diabetes-Friendly Choice
+Grilled Salmon Bowl — The Green Fork
+Low blood sugar impact
+
+This reinforces positive reinforcement.
+
+5️⃣ Empty State (important for new users)
+
+When no meals are logged:
+
+Instead of generic empty state, show:
+
+No meals logged yet.
+
+Start discovering diabetes-friendly dishes nearby and your weekly summary will appear here.
+
+Optional button:
+
+Find Safe Meals Near Me
+
+This pushes users back to Discover.
+
+6️⃣ Report Screen (Full page)
+
+Header:
+
+Your Weekly Dining Summary
+
+Subtext:
+
+A breakdown of how your restaurant choices may impact blood sugar.
+
+Sections:
+
+Meal Impact Breakdown
+Safe Choices: 8
+Moderate Impact: 3
+Higher Impact: 1
+Dining Pattern
+
+Example text:
+
+Your recent dining pattern shows mostly safe meal choices.
+Keep prioritizing low-carb and high-protein options.
+7️⃣ Add a share button
+
+At the bottom:
+
+Share My Dining Summary
+
+First version could simply share text like:
+
+My DiabEats Weekly Summary
+
+Safe meals: 8
+Moderate meals: 3
+Higher impact meals: 1
+
+Generated with DiabEats.
+
+Later this could become a PDF or doctor report.
+
+8️⃣ App Store feature description
+
+You can use this wording later in the App Store page:
+
+Weekly Health Summary
+
+DiabEats tracks your restaurant meal choices and shows a simple weekly summary of how your dining habits may impact blood sugar. See your safe choices, moderate meals, and higher-impact dishes at a glance.
+
+9️⃣ Why this is powerful
+
+Most diabetes apps only track:
+
+glucose
+
+calories
+
+carbs
+
+DiabEats tracks:
+
+real-world restaurant decisions
+
+That is a completely different problem.
+
+You are helping users answer:
+
+“What should I order when eating out?”
+
+Doctors hear that question every day.

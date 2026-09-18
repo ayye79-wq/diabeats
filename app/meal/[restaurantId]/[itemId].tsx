@@ -278,10 +278,10 @@ export default function MealDetailScreen() {
     try {
       const scoreLabel =
         meal.diabeticScore === "good"
-          ? "a Better Choice"
+          ? "a Better choice"
           : meal.diabeticScore === "caution"
           ? "a Moderate Choice"
-          : "an item to Limit";
+          : "a Higher impact item";
       await Share.share({
         message: `${meal.name} at ${restaurant.name} is rated ${scoreLabel} for diabetics on DiabEats.\n\n${meal.carbRange} · ${meal.price}\n\n"${meal.quickTip}"`,
       });
@@ -506,7 +506,7 @@ export default function MealDetailScreen() {
               </View>
 
               <Text style={[styles.spikeRiseUnit, { color: spikeCfg.text + "cc", marginBottom: 10 }]}>
-                Qualitative comparison from listed meal details—not a glucose prediction
+                Qualitative meal-impact comparison from listed meal details—not an individual glucose prediction
               </Text>
 
               <View style={[styles.spikeFactorList, { borderTopColor: spikeCfg.border }]}>

@@ -32,6 +32,17 @@ import { getBloodSugarImpact, getWhyText } from "@/lib/mealInsights";
 type BrowseFilter = "all" | "good" | "caution" | "low-carb" | "high-protein";
 type SortOption = "default" | "rating" | "friendly" | "distance";
 
+const BLOOD_SUGAR_FILTERS: { value: BrowseFilter; label: string; activeColor: string }[] = [
+  { value: "all", label: "All", activeColor: Colors.brand.primary },
+  { value: "good", label: "Friendly", activeColor: Colors.brand.good },
+  { value: "caution", label: "Moderate", activeColor: Colors.brand.caution },
+];
+
+const ADVANCED_FILTERS: { value: BrowseFilter; label: string; activeColor: string }[] = [
+  { value: "low-carb", label: "Low Carb", activeColor: "#0284c7" },
+  { value: "high-protein", label: "High Protein", activeColor: "#7c3aed" },
+];
+
 function localSearch(query: string, restaurants: Restaurant[]): { results: SmartResult[]; intent: { summary: string; isHealthIntent: boolean } } {
   const q = query.toLowerCase();
   const tokens = q.split(/\s+/).filter((t) => t.length > 2);
@@ -146,10 +157,10 @@ export default function DiscoverScreen() {
   const [filter, setFilter] = useState<BrowseFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [selectedCuisine, setSelectedCuisine] = useState<string>("All");
+  const [advancedFiltersVisible, setAdvancedFiltersVisible] = useState(false);
+  const [cuisineSearch, setCuisineSearch] = useState("");
   const [locationLabel, setLocationLabel] = useState("Nearby");
   const [locating, setLocating] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [manualLocation, setManualLocation] = useState("");
 
   const [smartMode, setSmartMode] = useState(false);
   const [smartLoading, setSmartLoading] = useState(false);
@@ -173,6 +184,31 @@ export default function DiscoverScreen() {
   });
 
   const cuisines = ["All", ...Array.from(new Set(restaurants.map((r) => r.cuisine)))].sort();
+  const commonCuisineOptions = [
+    { label: "All Cuisines", value: "All" },
+    { label: "American", value: "American" },
+    { label: "Mediterranean", value: "Mediterranean" },
+    { label: "Japanese", value: "Japanese" },
+  ];
+  const advancedCuisineOptions = cuisines.filter((cuisine) => cuisine !== "All");
+  const filteredAdvancedCuisines = advancedCuisineOptions.filter((cuisine) =>
+    cuisine.toLowerCase().includes(cuisineSearch.trim().toLowerCase()),
+  );
+  const selectedCuisineLabel =
+    commonCuisineOptions.find((option) => option.value === selectedCuisine)?.label ?? selectedCuisine;
+  const hasActiveFilters = filter !== "all" || selectedCuisine !== "All";
+  const activeFilterSummary = [
+    filter !== "all"
+      ? BLOOD_SUGAR_FILTERS.find((option) => option.value === filter)?.label ??
+        ADVANCED_FILTERS.find((option) => option.value === filter)?.label
+      : null,
+    selectedCuisine !== "All" ? selectedCuisineLabel : null,
+  ].filter(Boolean) as string[];
+
+  const clearFilters = () => {
+    setFilter("all");
+    setSelectedCuisine("All");
+  };
 
   const requestLocation = useCallback(async () => {
     setLocating(true);
@@ -296,7 +332,11 @@ export default function DiscoverScreen() {
         r.cuisine.toLowerCase().includes(lowerSearch) ||
         r.tags.some((t) => t.toLowerCase().includes(lowerSearch));
 
-      const matchesCuisine = selectedCuisine === "All" || r.cuisine === selectedCuisine;
+      const matchesCuisine =
+        selectedCuisine === "All" ||
+        (selectedCuisine === "American"
+          ? r.cuisine.toLowerCase().includes("american")
+          : r.cuisine === selectedCuisine);
 
       let matchesFilter = true;
       if (filter === "good") {
@@ -341,23 +381,44 @@ export default function DiscoverScreen() {
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <LinearGradient
         colors={["#0E2016", "#166534"]}
-        style={[styles.header, { paddingTop: topPad + 16 }]}
+        style={[styles.header, { paddingTop: topPad + 8 }]}
       >
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerLabel}>Eating near</Text>
-            <Pressable onPress={() => setShowLocationPicker(true)} style={styles.locationRow} accessibilityRole="button" accessibilityLabel={`Choose location, currently ${locationLabel}`}>
-              {locating ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="location" size={16} color={Colors.brand.primaryLight} />
-                  <Text style={styles.locationText}>{locationLabel}</Text>
-                  <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.6)" />
-                </>
-              )}
+          {smartMode ? (
+            <Pressable
+              onPress={clearSmartSearch}
+              style={styles.backToDiscover}
+              testID="back-to-discover-btn"
+              role="button"
+              aria-label="Back to Discover"
+              accessibilityRole="button"
+              accessibilityLabel="Back to Discover"
+              accessibilityHint="Returns to the Discover home page"
+            >
+              <View style={styles.backIconWrap}>
+                <Ionicons name="arrow-back" size={18} color={Colors.brand.primaryLight} />
+              </View>
+              <View>
+                <Text style={styles.headerLabel}>Back to</Text>
+                <Text style={styles.locationText}>Discover</Text>
+              </View>
             </Pressable>
-          </View>
+          ) : (
+            <View>
+              <Text style={styles.headerLabel}>Eating near</Text>
+              <Pressable onPress={requestLocation} style={styles.locationRow}>
+                {locating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="location" size={16} color={Colors.brand.primaryLight} />
+                    <Text style={styles.locationText}>{locationLabel}</Text>
+                    <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.6)" />
+                  </>
+                )}
+              </Pressable>
+            </View>
+          )}
           <View style={styles.logoWrap}>
             <Ionicons name="leaf" size={22} color={Colors.brand.primaryLight} />
           </View>
@@ -384,6 +445,8 @@ export default function DiscoverScreen() {
             onBlur={() => setSearchFocused(false)}
             onSubmitEditing={() => handleSearch(search)}
             returnKeyType="search"
+            accessibilityLabel="Search restaurants and meals"
+            accessibilityHint="Search restaurants or ask for a diabetes-conscious meal recommendation"
           />
           {search.length > 0 ? (
             <Pressable
@@ -398,48 +461,45 @@ export default function DiscoverScreen() {
         </View>
 
         {!smartMode && (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/safe-nearby");
-            }}
-            style={({ pressed }) => [styles.safeBtn, { opacity: pressed ? 0.88 : 1 }]}
-            testID="find-safe-meal-btn"
-          >
-            <View style={styles.safeBtnInner}>
-              <View style={styles.safeBtnIconWrap}>
-                <Ionicons name="leaf" size={16} color={Colors.brand.primary} />
+          <View style={styles.shortcutsRow}>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/safe-nearby");
+              }}
+              style={({ pressed }) => [styles.shortcutTile, { opacity: pressed ? 0.88 : 1 }]}
+              testID="find-safe-meal-btn"
+              role="button"
+              aria-label="Find blood-sugar-friendly meals"
+              tabIndex={0}
+              accessibilityRole="button"
+              accessibilityLabel="Find blood-sugar-friendly meals"
+            >
+              <View style={styles.shortcutIconWrap}>
+                <Ionicons name="leaf" size={15} color={Colors.brand.primary} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.safeBtnTitle}>Find Safe Meal Near Me</Text>
-                <Text style={styles.safeBtnSub}>Low blood sugar impact · Curated safe meals</Text>
-              </View>
-              <Ionicons name="arrow-forward-circle" size={22} color={Colors.brand.primaryLight} />
-            </View>
-          </Pressable>
-        )}
+              <Text style={styles.shortcutTitle} numberOfLines={1}>Blood-Sugar-Friendly</Text>
+            </Pressable>
 
-        {!smartMode && (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/(tabs)/biotrace");
-            }}
-            style={({ pressed }) => [styles.safeBtn, { marginTop: 9, opacity: pressed ? 0.88 : 1 }]}
-            accessibilityRole="button"
-            accessibilityLabel="Scan a packaged food product"
-          >
-            <View style={styles.safeBtnInner}>
-              <View style={styles.safeBtnIconWrap}>
-                <Ionicons name="barcode-outline" size={16} color={Colors.brand.primary} />
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/(tabs)/biotrace");
+              }}
+              style={({ pressed }) => [styles.shortcutTile, { opacity: pressed ? 0.88 : 1 }]}
+              testID="open-biotrace-btn"
+              role="button"
+              aria-label="Open BioTrace to scan a packaged food product"
+              tabIndex={0}
+              accessibilityRole="button"
+              accessibilityLabel="Open BioTrace to scan a packaged food product"
+            >
+              <View style={styles.shortcutIconWrap}>
+                <Ionicons name="barcode-outline" size={15} color={Colors.brand.primary} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.safeBtnTitle}>Scan a Product</Text>
-                <Text style={styles.safeBtnSub}>Barcode insights · Ingredients · Better alternatives</Text>
-              </View>
-              <Ionicons name="arrow-forward-circle" size={22} color={Colors.brand.primaryLight} />
-            </View>
-          </Pressable>
+              <Text style={styles.shortcutTitle} numberOfLines={1}>BioTrace Scan</Text>
+            </Pressable>
+          </View>
         )}
 
         {!smartMode && (
@@ -447,12 +507,21 @@ export default function DiscoverScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.suggestions}
+            role="toolbar"
+            aria-label="Search suggestions"
+            accessibilityRole="toolbar"
+            accessibilityLabel="Search suggestions"
           >
             {SUGGESTIONS.map((s) => (
               <Pressable
                 key={s}
                 onPress={() => handleSuggestion(s)}
                 style={styles.suggestionChip}
+                role="button"
+                aria-label={`Search for ${s}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Search for ${s}`}
+                accessibilityHint="Runs this suggestion as a search"
               >
                 <Ionicons name="sparkles-outline" size={11} color={Colors.brand.primaryLight} />
                 <Text style={styles.suggestionText}>{s}</Text>
@@ -461,20 +530,6 @@ export default function DiscoverScreen() {
           </ScrollView>
         )}
       </LinearGradient>
-
-      <Modal visible={showLocationPicker} transparent animationType="fade" onRequestClose={() => setShowLocationPicker(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowLocationPicker(false)}>
-          <Pressable style={[styles.locationModal, { backgroundColor: c.cardBg }]} onPress={() => {}}>
-            <Text style={[styles.locationModalTitle, { color: c.textPrimary }]}>Choose an area</Text>
-            <Text style={[styles.locationModalCopy, { color: c.textSecondary }]}>Enter a city, ZIP code, or neighborhood. This changes the area label; restaurant availability still comes from DiabEats data.</Text>
-            <TextInput value={manualLocation} onChangeText={setManualLocation} placeholder="Rockville, MD or 20853" placeholderTextColor={c.textMuted} style={[styles.locationInput, { color: c.textPrimary, borderColor: c.border }]} autoFocus />
-            <View style={styles.locationActions}>
-              <Pressable onPress={() => { setShowLocationPicker(false); void requestLocation(); }} style={styles.locationSecondary}><Text style={styles.locationSecondaryText}>Use my location</Text></Pressable>
-              <Pressable onPress={() => { const next = manualLocation.trim(); if (next) setLocationLabel(next.slice(0, 40)); setShowLocationPicker(false); }} style={styles.locationPrimary}><Text style={styles.locationPrimaryText}>Apply</Text></Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {smartMode ? (
         <View style={{ flex: 1 }}>
@@ -522,35 +577,8 @@ export default function DiscoverScreen() {
       ) : (
         <>
           <View style={[styles.filterBar, { backgroundColor: c.background }]}>
-            <View style={styles.filterRowContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterScroll}
-              >
-                {(["all", "good", "caution", "low-carb", "high-protein"] as BrowseFilter[]).map((f) => {
-                  const label = f === "all" ? "All" : f === "good" ? "Friendly" : f === "caution" ? "Moderate" : f === "low-carb" ? "Low Carb" : "High Protein";
-                  const activeBg = f === "all" ? Colors.brand.primary : f === "good" ? Colors.brand.good : f === "caution" ? Colors.brand.caution : f === "low-carb" ? "#0284c7" : "#7c3aed";
-                  return (
-                    <Pressable
-                      key={f}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setFilter(f);
-                      }}
-                      style={[
-                        styles.filterBtn,
-                        filter === f ? { backgroundColor: activeBg } : { borderColor: c.border, borderWidth: 1 },
-                      ]}
-                    >
-                      <Text style={[styles.filterText, { color: filter === f ? "#fff" : c.textSecondary }]}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
+            <View style={styles.filterSectionHeader}>
+              <Text style={[styles.filterSectionLabel, { color: c.textMuted }]}>Meal impact</Text>
               <View style={[styles.sortWrapper, { borderLeftColor: c.border }]}>
                 <Pressable
                   onPress={() => {
@@ -563,6 +591,16 @@ export default function DiscoverScreen() {
                     styles.sortBtn,
                     sortBy !== "default" && { backgroundColor: Colors.brand.primary },
                   ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sort restaurants by ${
+                    sortBy === "default"
+                      ? "default order"
+                      : sortBy === "rating"
+                      ? "rating"
+                      : sortBy === "friendly"
+                      ? "friendly choices"
+                      : "distance"
+                  }`}
                 >
                   <Ionicons
                     name="swap-vertical"
@@ -586,40 +624,227 @@ export default function DiscoverScreen() {
                 </Pressable>
               </View>
             </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cuisineScroll}
-            >
-              {cuisines.map((cuisine) => (
+            <View style={styles.filterRowContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterScroll}
+              >
+                {BLOOD_SUGAR_FILTERS.map(({ value, label, activeColor }) => {
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setFilter(value);
+                      }}
+                      style={[
+                        styles.filterBtn,
+                        filter === value
+                          ? { backgroundColor: activeColor }
+                          : { borderColor: c.border, borderWidth: 1 },
+                      ]}
+                      testID={`impact-filter-${value}`}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${label} meal impact`}
+                      accessibilityState={{ checked: filter === value }}
+                      aria-checked={filter === value}
+                    >
+                      <Text style={[styles.filterText, { color: filter === value ? "#fff" : c.textSecondary }]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
                 <Pressable
-                  key={cuisine}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedCuisine(cuisine);
+                    setCuisineSearch("");
+                    setAdvancedFiltersVisible(true);
                   }}
                   style={[
-                    styles.cuisineBtn,
-                    selectedCuisine === cuisine && {
-                      backgroundColor: Colors.brand.primary,
-                      borderColor: Colors.brand.primary,
-                    },
-                    selectedCuisine !== cuisine && { borderColor: c.border },
+                    styles.filterBtn,
+                    styles.moreFiltersBtn,
+                    { borderColor: c.border },
+                    selectedCuisine !== "All" && { borderColor: Colors.brand.primary, backgroundColor: Colors.brand.goodLight },
                   ]}
+                  testID="more-filters"
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    selectedCuisine !== "All"
+                      ? `More filters, cuisine set to ${selectedCuisineLabel}`
+                      : "More cuisine and nutrition filters"
+                  }
                 >
-                  <Text
-                    style={[
-                      styles.cuisineText,
-                      selectedCuisine === cuisine ? { color: "#fff" } : { color: c.textSecondary },
-                    ]}
-                  >
-                    {cuisine}
+                  <Ionicons name="options-outline" size={14} color={selectedCuisine !== "All" ? Colors.brand.primary : c.textSecondary} />
+                  <Text style={[styles.filterText, { fontSize: 13, color: selectedCuisine !== "All" ? Colors.brand.primaryDark : c.textSecondary }]}>
+                    {selectedCuisine !== "All" ? selectedCuisineLabel : "Filters"}
                   </Text>
                 </Pressable>
-              ))}
-            </ScrollView>
+              </ScrollView>
+            </View>
+
+            {hasActiveFilters && (
+              <View style={styles.activeFilterRow}>
+                <Ionicons name="funnel-outline" size={13} color={Colors.brand.primary} />
+                <Text
+                  style={[styles.activeFilterText, { color: c.textSecondary, flex: 1 }]}
+                  accessibilityLiveRegion="polite"
+                >
+                  Showing {activeFilterSummary.join(" · ")}
+                </Text>
+                <Pressable
+                  onPress={clearFilters}
+                  style={styles.clearFiltersBtn}
+                  testID="clear-filters"
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear active filters"
+                >
+                  <Text style={[styles.clearFiltersText, { color: Colors.brand.primary }]}>Clear</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
+
+          <Modal
+            visible={advancedFiltersVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setAdvancedFiltersVisible(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <Pressable
+                style={styles.modalDismissArea}
+                onPress={() => setAdvancedFiltersVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close more filters"
+              />
+              <View
+                style={[
+                  styles.filterSheet,
+                  { backgroundColor: c.background, paddingBottom: bottomPad + 20 },
+                ]}
+                testID="more-filters-modal"
+              >
+                <View style={styles.sheetHeader}>
+                  <View>
+                    <Text style={[styles.sheetTitle, { color: c.textPrimary }]}>More filters</Text>
+                    <Text style={[styles.sheetSubtitle, { color: c.textSecondary }]}>
+                      Explore nutrition and every cuisine category
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setAdvancedFiltersVisible(false)}
+                    style={styles.sheetCloseBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close more filters"
+                  >
+                    <Ionicons name="close" size={22} color={c.textSecondary} />
+                  </Pressable>
+                </View>
+
+                <Text style={[styles.filterSectionLabel, { color: c.textMuted }]}>Nutrition</Text>
+                <View style={styles.advancedFilterRow}>
+                  {ADVANCED_FILTERS.map(({ value, label, activeColor }) => (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setFilter(value);
+                      }}
+                      style={[
+                        styles.filterBtn,
+                        filter === value
+                          ? { backgroundColor: activeColor }
+                          : { borderColor: c.border, borderWidth: 1 },
+                      ]}
+                      testID={`advanced-filter-${value}`}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${label} nutrition filter`}
+                      accessibilityState={{ checked: filter === value }}
+                      aria-checked={filter === value}
+                    >
+                      <Text style={[styles.filterText, { color: filter === value ? "#fff" : c.textSecondary }]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View style={styles.sheetCuisineHeader}>
+                  <Text style={[styles.filterSectionLabel, { color: c.textMuted }]}>Cuisine</Text>
+                  <Text style={[styles.cuisineCount, { color: c.textMuted }]}>
+                    {advancedCuisineOptions.length} categories
+                  </Text>
+                </View>
+                <View style={[styles.cuisineSearchRow, { borderColor: c.border, backgroundColor: c.cardBg }]}>
+                  <Ionicons name="search" size={16} color={c.textMuted} />
+                  <TextInput
+                    value={cuisineSearch}
+                    onChangeText={setCuisineSearch}
+                    placeholder="Search cuisines"
+                    placeholderTextColor={c.textMuted}
+                    style={[styles.cuisineSearchInput, { color: c.textPrimary }]}
+                    accessibilityLabel="Search cuisines"
+                    testID="advanced-cuisine-search"
+                  />
+                  {cuisineSearch.length > 0 && (
+                    <Pressable
+                      onPress={() => setCuisineSearch("")}
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear cuisine search"
+                    >
+                      <Ionicons name="close-circle" size={17} color={c.textMuted} />
+                    </Pressable>
+                  )}
+                </View>
+                <ScrollView
+                  style={styles.sheetCuisineList}
+                  contentContainerStyle={styles.sheetCuisineContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {filteredAdvancedCuisines.map((cuisine) => (
+                    <Pressable
+                      key={cuisine}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setSelectedCuisine(cuisine);
+                      }}
+                      style={[
+                        styles.sheetCuisineOption,
+                        {
+                          backgroundColor: selectedCuisine === cuisine ? Colors.brand.goodLight : c.cardBg,
+                          borderColor: selectedCuisine === cuisine ? Colors.brand.primary : c.border,
+                        },
+                      ]}
+                      testID={`advanced-cuisine-${cuisine.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${cuisine} cuisine`}
+                      accessibilityState={{ checked: selectedCuisine === cuisine }}
+                      aria-checked={selectedCuisine === cuisine}
+                    >
+                      <Text
+                        style={[
+                          styles.sheetCuisineOptionText,
+                          { color: selectedCuisine === cuisine ? Colors.brand.primaryDark : c.textPrimary },
+                        ]}
+                      >
+                        {cuisine}
+                      </Text>
+                      {selectedCuisine === cuisine && (
+                        <Ionicons name="checkmark-circle" size={18} color={Colors.brand.primary} />
+                      )}
+                    </Pressable>
+                  ))}
+                  {filteredAdvancedCuisines.length === 0 && (
+                    <Text style={[styles.noCuisineText, { color: c.textSecondary }]}>
+                      No cuisines match “{cuisineSearch}”.
+                    </Text>
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
 
           <ScrollView
             style={styles.list}
@@ -716,6 +941,17 @@ export default function DiscoverScreen() {
                         </Pressable>
                       </View>
                     ) : null}
+                    {hasActiveFilters && !search.trim() && (
+                      <Pressable
+                        style={[styles.similarBtn, { backgroundColor: c.cardBg, borderColor: c.border, borderWidth: 1 }]}
+                        onPress={clearFilters}
+                        accessibilityRole="button"
+                        accessibilityLabel="Clear filters and browse all restaurants"
+                      >
+                        <Ionicons name="funnel-outline" size={15} color={c.textSecondary} />
+                        <Text style={[styles.similarBtnText, { color: c.textSecondary }]}>Clear filters</Text>
+                      </Pressable>
+                    )}
                   </View>
                 ) : (
                   filtered.map((r) => (
@@ -909,7 +1145,7 @@ function SmartSearchResults({
                   return (
                     <>
                       <View style={[styles.smartImpactRow, { backgroundColor: impact.rowBg }]}>
-                        <Text style={styles.smartImpactLabel}>Blood Sugar Impact</Text>
+                        <Text style={styles.smartImpactLabel}>Meal impact</Text>
                         <View style={[styles.smartImpactBadge, { backgroundColor: impact.badgeBg }]}>
                           <Text style={[styles.smartImpactBadgeText, { color: impact.badgeText }]}>{impact.label}</Text>
                         </View>
@@ -944,61 +1180,80 @@ function SmartSearchResults({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 14 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
+  header: { paddingHorizontal: 20, paddingBottom: 10 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
+  backToDiscover: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
+  backIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
   headerLabel: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 4 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   locationText: { fontFamily: "Inter_700Bold", fontSize: 20, color: "#fff" },
   logoWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 14, paddingHorizontal: 14, height: 46 },
+  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 14, paddingHorizontal: 14, height: 44 },
   searchRowActive: { backgroundColor: "rgba(34,197,94,0.2)", borderWidth: 1, borderColor: Colors.brand.primaryLight },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: "#fff", height: "100%" },
-  safeBtn: {
-    marginTop: 10,
-    marginHorizontal: 0,
+  shortcutsRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  shortcutTile: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.15)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.22)",
-    overflow: "hidden" as const,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
-  safeBtnInner: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  safeBtnIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+  shortcutIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
     backgroundColor: "#dcfce7",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  safeBtnTitle: { fontFamily: "Inter_700Bold", fontSize: 14, color: "#fff" },
-  safeBtnSub: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 1 },
-  suggestions: { paddingTop: 12, paddingBottom: 2, gap: 8 },
-  suggestionChip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  suggestionText: { fontFamily: "Inter_500Medium", fontSize: 13, color: "#fff" },
-  filterBar: { paddingVertical: 12 },
-  filterRowContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 },
+  shortcutTitle: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#fff" },
+  suggestions: { flexDirection: "row", paddingTop: 8, paddingBottom: 2, gap: 8 },
+  suggestionChip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, maxWidth: "100%" },
+  suggestionText: { flexShrink: 1, fontFamily: "Inter_500Medium", fontSize: 13, color: "#fff" },
+  filterBar: { paddingVertical: 6 },
+  filterSectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, minHeight: 24 },
+  filterSectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase" },
+  filterRowContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginBottom: 6 },
   filterScroll: { gap: 8, paddingRight: 12 },
   filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   filterText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  clearFiltersBtn: { paddingVertical: 4, paddingHorizontal: 2 },
+  clearFiltersText: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
   sortWrapper: { borderLeftWidth: 1, paddingLeft: 12, marginLeft: 4 },
   sortBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "transparent" },
   sortText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-  cuisineScroll: { paddingHorizontal: 20, gap: 8 },
-  cuisineBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
-  cuisineText: { fontFamily: "Inter_500Medium", fontSize: 13 },
+  moreFiltersBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1 },
+  activeFilterRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 20, paddingTop: 10 },
+  activeFilterText: { fontFamily: "Inter_500Medium", fontSize: 12 },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.38)" },
+  modalDismissArea: { ...StyleSheet.absoluteFill },
+  filterSheet: { maxHeight: "86%", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 20, paddingHorizontal: 20 },
+  sheetHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 },
+  sheetTitle: { fontFamily: "Inter_700Bold", fontSize: 22, marginBottom: 4 },
+  sheetSubtitle: { fontFamily: "Inter_400Regular", fontSize: 13 },
+  sheetCloseBtn: { padding: 6, marginRight: -6, marginTop: -6 },
+  advancedFilterRow: { flexDirection: "row", gap: 8, marginTop: 10, marginBottom: 20 },
+  sheetCuisineHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  cuisineCount: { fontFamily: "Inter_400Regular", fontSize: 12 },
+  cuisineSearchRow: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, height: 44, marginBottom: 10 },
+  cuisineSearchInput: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14, height: "100%" },
+  sheetCuisineList: { flexGrow: 0 },
+  sheetCuisineContent: { gap: 8, paddingBottom: 4 },
+  sheetCuisineOption: { minHeight: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sheetCuisineOptionText: { fontFamily: "Inter_500Medium", fontSize: 14 },
+  noCuisineText: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", paddingVertical: 20 },
   list: { flex: 1 },
   listContent: { paddingHorizontal: 20 },
   centered: { alignItems: "center", paddingTop: 60, gap: 12 },
   loadingText: { fontFamily: "Inter_400Regular", fontSize: 15 },
-  sectionTitle: { fontFamily: "Inter_500Medium", fontSize: 13, marginBottom: 12 },
+  sectionTitle: { fontFamily: "Inter_500Medium", fontSize: 13, marginBottom: 8 },
   emptyTitle: { fontFamily: "Inter_700Bold", fontSize: 20 },
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, textAlign: "center", paddingHorizontal: 20 },
   similarBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 24 },
@@ -1098,14 +1353,4 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.48)", justifyContent: "center", padding: 24 },
-  locationModal: { borderRadius: 18, padding: 20 },
-  locationModalTitle: { fontFamily: "Inter_700Bold", fontSize: 20 },
-  locationModalCopy: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 7 },
-  locationInput: { height: 47, borderWidth: 1, borderRadius: 11, paddingHorizontal: 12, marginTop: 16, fontFamily: "Inter_400Regular" },
-  locationActions: { flexDirection: "row", gap: 9, marginTop: 14 },
-  locationSecondary: { flex: 1, minHeight: 44, justifyContent: "center", alignItems: "center", borderRadius: 11, borderWidth: 1, borderColor: Colors.brand.primary },
-  locationSecondaryText: { color: Colors.brand.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 },
-  locationPrimary: { flex: 1, minHeight: 44, justifyContent: "center", alignItems: "center", borderRadius: 11, backgroundColor: Colors.brand.primary },
-  locationPrimaryText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
 });

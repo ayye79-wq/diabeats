@@ -5,6 +5,7 @@ node_modules/
 
 # Expo
 .expo/
+.eas/google-play-service-account.json
 dist/
 web-build/
 static-build/
@@ -28,6 +29,7 @@ android/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+test-results/
 
 # macOS
 .DS_Store
@@ -46,9 +48,14 @@ yarn-error.*
 ziRumkxT
 diabeats-project.zip
 
+# Imported credential material must remain local.
+attached_assets/diabeats-revenuecat-493715-a5d24f8e2387_1787437561999.json
+
 # Generated promotional media and private publishing state
 content-agent/outbox/*.json
 content-agent/outbox/*.mp3
 content-agent/outbox/*.mp4
+content-agent/outbox/*.webm
 content-agent/published/*.json
 content-agent/state.json
+.eas/*.p8

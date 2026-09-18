@@ -1,0 +1,239 @@
+Replit Prompt — Add RevealIt-Inspired Food Scanning to Diabeats
+
+Upgrade the existing Diabeats app by expanding the current BioTrace feature into a diabetes-focused food and product scanner.
+
+Do not redesign the whole app. Keep the current Diabeats branding, colors, navigation style, authentication, and existing working features intact. The goal is to add a useful scanning workflow without breaking current functionality.
+
+Core Feature
+
+Create a new BioTrace experience where users can scan or photograph:
+
+* A packaged food
+* A nutrition facts label
+* An ingredient list
+* A product barcode, if barcode support already exists or can be added cleanly
+
+The app should extract available nutrition information and provide a diabetes-focused explanation.
+
+Scan Result Screen
+
+After a successful scan, display:
+
+Product Name
+
+Show detected product name and brand when available.
+
+Blood Sugar Fit Score
+
+Show a simple score from 0–100 labeled:
+
+Blood Sugar Fit
+
+The score should be based primarily on factors such as:
+
+* Total carbohydrates
+* Fiber
+* Added sugar
+* Serving size
+* Protein
+* Sugar alcohols where relevant
+* Overall carbohydrate density
+
+Do not present this score as medical advice or claim that a food is universally good or bad.
+
+Quick Summary
+
+Generate a short plain-language explanation such as:
+
+Moderate-carb choice. One serving contains 23 g of carbohydrates, 4 g of fiber, and 6 g of added sugar. Portion size may have a meaningful effect on blood glucose.
+
+Nutrition Highlights
+
+Clearly display:
+
+* Calories
+* Total carbohydrates
+* Fiber
+* Total sugar
+* Added sugar
+* Protein
+* Sodium
+* Serving size
+
+Only show values that were successfully detected.
+
+Ingredient Insights
+
+Highlight ingredients that may matter to someone managing blood glucose, such as:
+
+* Added sugars
+* Syrups
+* Refined starches
+* Maltodextrin
+* High-carbohydrate fillers
+* Sugar alcohols
+* High-fiber ingredients
+
+For every flagged ingredient, explain why it matters.
+
+Avoid fear-based words such as:
+
+* Toxic
+* Poison
+* Dangerous
+* Harmful
+
+unless there is verified regulatory evidence requiring such language.
+
+Better Choice Feature
+
+Add a button:
+
+Find a Better Choice
+
+For the first version, this can generate general suggestions based on the scanned product category.
+
+Example:
+
+Look for a cereal with less added sugar, more fiber, and fewer carbohydrates per serving.
+
+Do not invent specific products unless the app has reliable product data.
+
+Compare Products
+
+Allow users to save scanned products and compare two products side by side.
+
+Comparison fields should include:
+
+* Blood Sugar Fit score
+* Carbs
+* Fiber
+* Added sugar
+* Protein
+* Serving size
+
+Highlight which option appears more glucose-friendly based on the available nutrition information.
+
+Scan History
+
+Create a BioTrace scan history showing:
+
+* Product name
+* Date scanned
+* Blood Sugar Fit score
+* Thumbnail if available
+
+Allow users to reopen previous scans.
+
+Favorites
+
+Allow users to save frequently used products to Favorites.
+
+Future-Ready Glucose Response Section
+
+Add the UI structure for a future feature called:
+
+My Glucose Response
+
+Do not fabricate glucose readings.
+
+For now, show a placeholder such as:
+
+When glucose tracking is connected, Diabeats will help you understand how foods you eat relate to your glucose patterns.
+
+Design the data model so a future product scan can be linked to:
+
+* Meal timestamp
+* Pre-meal glucose
+* Post-meal glucose
+* Glucose change
+* Time to peak
+
+Do not implement insulin dosing recommendations.
+
+Safety
+
+Diabeats must remain informational and educational.
+
+Add appropriate wording making clear that:
+
+* The score is not a medical diagnosis.
+* Food responses vary between individuals.
+* Users should follow guidance from their healthcare professional.
+* The app must not recommend insulin doses or medication changes.
+
+BioTrace Positioning
+
+Update the BioTrace area to use this positioning:
+
+BioTrace
+
+Scan. Understand. Choose.
+
+Supporting copy:
+
+Scan nutrition labels and ingredients to understand how a food may fit into your diabetes management.
+
+UX Requirements
+
+Keep the workflow simple:
+
+BioTrace → Scan → Analyze → Results → Save / Compare
+
+The scan screen should include:
+
+* Take Photo
+* Choose Photo
+* Scan Barcode, if supported
+
+The result screen should feel visual and easy to understand, not like a medical report.
+
+Use the existing Diabeats color palette and component styles.
+
+Technical Requirements
+
+Before modifying anything:
+
+1. Inspect the existing Diabeats codebase.
+2. Identify the current BioTrace implementation.
+3. Reuse existing components, services, database structure, camera permissions, authentication, and styling where possible.
+4. Do not duplicate functionality already present.
+5. Do not change unrelated screens.
+6. Do not break the existing Android or iOS build.
+7. Keep Android media permissions compliant with Google Play policy. Do not reintroduce READ_MEDIA_IMAGES or READ_MEDIA_VIDEO for occasional image selection. Continue using the system Photo Picker or equivalent compliant mechanism.
+8. Camera capture should request only the camera permission actually needed.
+9. Handle failed OCR, missing nutrition values, and incomplete scans gracefully.
+
+Implementation Order
+
+Build this incrementally:
+
+Phase 1
+
+* BioTrace scan interface
+* Camera/photo input
+* Nutrition-label extraction
+* Nutrition result screen
+* Blood Sugar Fit score
+* Quick explanation
+
+Phase 2
+
+* Ingredient analysis
+* Scan history
+* Favorites
+* Product comparison
+
+Phase 3
+
+* Better Choice recommendations
+* Glucose-response data structure and placeholder UI
+
+Start by inspecting the current repository and tell me:
+
+1. Where BioTrace currently lives in the codebase
+2. What existing camera/photo/OCR functionality can be reused
+3. What files you plan to modify
+4. Any dependency or architecture changes required
+
+Then implement Phase 1 first, test it, and report exactly what changed and how it was verified.

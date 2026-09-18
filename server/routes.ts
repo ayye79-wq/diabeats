@@ -16,8 +16,10 @@ import {
   biotraceScans,
   biotraceSavedFoods,
   biotraceCorrections,
+  biotraceUnclassifiedIngredients,
+  mealPhotoAnalyses,
 } from "./schema";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, sql, or, isNull, lt, gte } from "drizzle-orm";
 import { RESTAURANTS } from "../data/restaurants";
 import { z } from "zod";
 import {
@@ -48,14 +50,83 @@ import {
   sessionCreationRateLimit,
 } from "./security";
 import { barcodeSchema, ProviderError, type NormalizedProduct } from "../shared/biotrace";
-import { computeBioTraceRating } from "../shared/biotrace-rating";
-import { lookupByBarcode, searchByName } from "./services/open-food-facts";
+import {
+  premiumStateFromRevenueCatEvent,
+  revenueCatWebhookEventSchema,
+} from "../shared/subscription";
+import { resolveBioTraceQrPayload } from "../shared/biotrace-qr";
+import {
+  bioTraceProfileSchema,
+  computeBioTraceRating,
+  type BioTraceProfile,
+} from "../shared/biotrace-rating";
+import { buildBioTraceAssistantContext } from "../shared/biotrace-assistant";
+import { labelAnalysisSchema, labelExtractionSchema } from "../shared/biotrace-label";
+import {
+  analyzeIngredients,
+  collectUnclassifiedIngredientTelemetry,
+} from "../shared/biotrace-ingredients";
+import { lookupByBarcode, searchByName } from "./services/biotrace-provider";
 import { findAlternatives } from "./services/biotrace-alternatives";
-import { lookupUsdaFood, searchUsdaFoods } from "./services/usda-fooddata-central";
+import {
+  buildUnknownIdentifierResult,
+  resolveBarcodeProduct,
+  type ProductCache,
+  resolveNamedGenericCandidates,
+} from "./services/biotrace-resolver";
+import { searchGenericFoods } from "./services/usda-food-data";
+import {
+  calculateMealPhotoAnalysis,
+  mealPhotoAnalysisSchema,
+  mealPhotoResponseSchema,
+  mealPhotoVisionSchema,
+  normalizeNutritionTo100g,
+  type MealPhotoItem,
+} from "../shared/meal-photo";
+import { createMealAnalysisToken, verifyMealAnalysisToken } from "./services/meal-analysis-token";
+import { ContentDraftStoreError, contentDraftStore } from "../content-agent/drafts";
+import { TikTokApiError, uploadTikTokDraft } from "../content-agent/tiktok";
+import {
+  TikTokFlowError,
+  beginTikTokUpload,
+  completeTikTokOAuth,
+  finishTikTokUpload,
+  getTikTokAccessToken,
+  getTikTokConnectionStatus,
+  markTikTokTransferStarted,
+  resolveTikTokUpload,
+  startTikTokOAuth,
+  uploadStatesByDraft,
+} from "./tiktok";
+import {
+  BIOTRACE_DUPLICATE_WINDOW_MS,
+  canonicalBioTraceBarcode,
+  isDuplicateBioTraceScan,
+} from "../lib/biotrace-history-logic";
+
+export { BIOTRACE_DUPLICATE_WINDOW_MS };
+
+export function isBioTraceDuplicateWithinWindow(
+  existingBarcode: string | null,
+  existingCreatedAt: Date,
+  candidateBarcode: string,
+  candidateCreatedAt: Date,
+): boolean {
+  return Boolean(
+    existingBarcode &&
+      isDuplicateBioTraceScan(
+        existingBarcode,
+        existingCreatedAt.toISOString(),
+        candidateBarcode,
+        candidateCreatedAt.toISOString(),
+      ),
+  );
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const AI_QUESTION_LIMIT = 5;
   const SCAN_LIMIT = 3;
+  const CONTENT_DRAFT_APPROVED_EVENT = "content_draft_approved";
   const currentDate = () => new Date().toISOString().slice(0, 10);
   const boundedJson = z.unknown().refine(
     (value) => JSON.stringify(value).length <= 20_000,
@@ -67,6 +138,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   const aiResponseEvidence = (source: string, basis: string, verified = false) =>
     makeEvidence(source, basis, verified);
+  const mealTokenSecret = process.env.SESSION_SECRET ?? "";
+
+  async function reviewableContentDrafts() {
+    const [drafts, approvals, uploadStates] = await Promise.all([
+      contentDraftStore.list(),
+      db
+        .select({ id: userEvents.itemId })
+        .from(userEvents)
+        .where(eq(userEvents.event, CONTENT_DRAFT_APPROVED_EVENT)),
+      uploadStatesByDraft(),
+    ]);
+    const approvedIds = new Set(
+      approvals
+        .map((approval) => approval.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    return drafts.map((draft) =>
+      ({
+        ...draft,
+        ...(approvedIds.has(draft.id) ? { status: "approved" as const } : {}),
+        ...(uploadStates.has(draft.id) ? { tiktokUpload: uploadStates.get(draft.id) } : {}),
+      }),
+    );
+  }
+
+  function tiktokErrorResponse(error: unknown, res: Response): boolean {
+    if (!(error instanceof TikTokFlowError)) return false;
+    const status =
+      error.code === "invalid_state" ? 400 :
+      error.code === "not_configured" ? 503 :
+      error.code === "not_connected" ? 409 :
+      error.code === "not_approved" || error.code === "duplicate_upload" ? 409 :
+      500;
+    res.status(status).json({ error: error.message });
+    return true;
+  }
+
+  async function approveContentDraft(id: string) {
+    const draft = (await contentDraftStore.list()).find((candidate) => candidate.id === id);
+    if (!draft) throw new ContentDraftStoreError("not_found", "Draft not found.");
+    if (draft.status !== "draft") {
+      throw new ContentDraftStoreError("not_approvable", "Only draft content can be approved.");
+    }
+
+    return db.transaction(async (tx) => {
+      // Serialize approval for a single public ID even when autoscale instances
+      // receive duplicate requests at the same time.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`content-draft:${id}`}))`);
+      const existingApproval = await tx
+        .select({ id: userEvents.id })
+        .from(userEvents)
+        .where(
+          and(
+            eq(userEvents.event, CONTENT_DRAFT_APPROVED_EVENT),
+            eq(userEvents.itemId, id),
+          ),
+        )
+        .limit(1);
+      if (existingApproval.length > 0) {
+        throw new ContentDraftStoreError("not_approvable", "This draft has already been approved.");
+      }
+
+      await tx.insert(userEvents).values({
+        event: CONTENT_DRAFT_APPROVED_EVENT,
+        itemId: id,
+        metadata: JSON.stringify({ source: "admin-content-review" }),
+      });
+      return { ...draft, status: "approved" as const };
+    });
+  }
 
   function validate<T>(schema: z.ZodType<T>, body: unknown, res: Response): T | null {
     const parsed = schema.safeParse(body);
@@ -122,11 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const payload = validate(
       z.object({
-        event: z.object({
-          app_user_id: z.string().trim().min(1).max(255),
-          type: z.string().trim().min(1).max(80),
-          expiration_at_ms: z.number().nullable().optional(),
-        }),
+        event: revenueCatWebhookEventSchema,
       }),
       req.body,
       res,
@@ -134,18 +271,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!payload) return;
 
     try {
-      const eventType = payload.event.type.toUpperCase();
-      const expiresAt = payload.event.expiration_at_ms ?? 0;
-      const staysActiveUntilExpiration = eventType === "CANCELLATION" && expiresAt > Date.now();
-      const isPremium =
-        staysActiveUntilExpiration ||
-        ["INITIAL_PURCHASE", "RENEWAL", "UNCANCELLATION", "PRODUCT_CHANGE", "SUBSCRIPTION_EXTENDED"].includes(eventType);
+      const isPremium = premiumStateFromRevenueCatEvent(payload.event);
+      if (isPremium === null) {
+        return res.json({ ok: true, ignored: true });
+      }
 
-      await db
+      const eventAt = new Date(payload.event.event_timestamp_ms);
+      const updated = await db
         .update(appSessions)
-        .set({ isPremium })
-        .where(eq(appSessions.revenueCatUserId, payload.event.app_user_id));
-      res.json({ ok: true });
+        .set({
+          isPremium,
+          subscriptionEventId: payload.event.id,
+          subscriptionEventAt: eventAt,
+        })
+        .where(
+          and(
+            eq(appSessions.revenueCatUserId, payload.event.app_user_id),
+            or(
+              isNull(appSessions.subscriptionEventAt),
+              lt(appSessions.subscriptionEventAt, eventAt),
+            ),
+          ),
+        )
+        .returning({ id: appSessions.id });
+      res.json({ ok: true, applied: updated.length > 0 });
     } catch (error) {
       console.error("RevenueCat webhook error:", error);
       res.status(500).json({ error: "Could not update subscription status." });
@@ -582,9 +731,16 @@ Use cautious terms such as "may" and "could." Be specific about which ingredient
 
   app.post("/api/chat", requireSession, aiRateLimit, async (req: Request, res: Response) => {
     try {
-      const input = validate(z.object({ messages: z.array(messageSchema).min(1).max(20) }), req.body, res);
+      const input = validate(
+        z.object({
+          messages: z.array(messageSchema).min(1).max(20),
+          biotraceBarcode: barcodeSchema.optional(),
+        }),
+        req.body,
+        res,
+      );
       if (!input) return;
-      const { messages } = input;
+      const { messages, biotraceBarcode } = input;
       const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
 
       if (isUrgentHealthQuestion(latestUserMessage)) {
@@ -611,6 +767,21 @@ Use cautious terms such as "may" and "could." Be specific about which ingredient
         return;
       }
 
+      let biotraceContext: ReturnType<typeof buildBioTraceAssistantContext> | null = null;
+      if (biotraceBarcode) {
+        try {
+          const product = await resolveProduct(biotraceBarcode);
+          await cacheProduct(product);
+          biotraceContext = buildBioTraceAssistantContext(
+            product,
+            computeBioTraceRating(product, bioTraceProfileFromRequest(req)),
+          );
+        } catch (err) {
+          handleProviderError(err, res, "Could not load the verified BioTrace product.");
+          return;
+        }
+      }
+
       if (!(await consumeAiQuota(req, res, "ai", AI_QUESTION_LIMIT))) return;
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -622,7 +793,11 @@ Use cautious terms such as "may" and "could." Be specific about which ingredient
           {
             role: "system",
             content:
-              "You are a friendly educational nutrition assistant for DiabEats, helping people compare restaurant meals. Use non-diagnostic language: explain general food patterns, use “may” or “can vary,” and never claim certainty about glucose outcomes. Never provide insulin doses, medication adjustments, diagnosis, or treatment advice. For severe symptoms or suspected urgent low/high glucose, tell the user to seek urgent local care. Cite only the details the user gives; do not invent nutrition facts. Keep responses concise and practical.",
+              `You are a friendly educational nutrition assistant for DiabEats, helping people compare restaurant meals and understand verified package labels. Use non-diagnostic language: explain general food patterns, use “may” or “can vary,” and never claim certainty about glucose outcomes. Never provide insulin doses, medication adjustments, diagnosis, or treatment advice. For severe symptoms or suspected urgent low/high glucose, tell the user to seek urgent local care. Cite only the details the user gives or the verified BioTrace context below; do not invent nutrition facts. Keep responses concise and practical.
+
+BioTrace applies only to packaged products. Do not call a restaurant score, menu-photo estimate, or your own advice a BioTrace rating. When a BioTrace context is present, its product values and deterministic rating are authoritative for this conversation; explain the listed factors but never alter or recalculate that rating.
+
+Verified BioTrace context: ${biotraceContext ? JSON.stringify(biotraceContext) : "No packaged product selected."}`,
           },
           ...messages.map((message) => ({
             role: "user" as const,
@@ -749,6 +924,261 @@ Only include items you can clearly read. If image quality is poor, return empty 
     }
   });
 
+  app.post("/api/biotrace/label", requireSession, aiRateLimit, async (req: Request, res: Response) => {
+    try {
+      const input = validate(
+        z.object({
+          image: z
+            .string()
+            .min(100)
+            .max(8_000_000)
+            .regex(/^[A-Za-z0-9+/=\s]+$/, "Image must be base64 encoded"),
+          imageType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional().default("image/jpeg"),
+        }).strict(),
+        req.body,
+        res,
+      );
+      if (!input) return;
+      if (!(await consumeAiQuota(req, res, "scan", SCAN_LIMIT))) return;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 1800,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: { url: `data:${input.imageType};base64,${input.image}`, detail: "high" },
+              },
+              {
+                type: "text",
+                text: `Read this packaged-food nutrition facts label or ingredient list, which may be written in English or another common language. Transcribe only content that is clearly legible in the image. Never guess, infer, calculate, or fill in a missing value. Return null for every field that is not visible and legible. This is label transcription only: do not provide medical advice, diagnoses, medication guidance, blood glucose predictions, or a health rating.
+
+Return ONLY valid JSON with this exact structure (no markdown or code blocks):
+{
+  "status": "ready" | "incomplete" | "unreadable",
+  "productName": "visible product name" | null,
+  "brand": "visible brand" | null,
+  "servingSize": "exact visible serving size" | null,
+  "nutrition": {
+    "calories": number | null,
+    "carbohydratesGrams": number | null,
+    "fiberGrams": number | null,
+    "sugarsGrams": number | null,
+    "addedSugarsGrams": number | null,
+    "proteinGrams": number | null,
+    "sodiumMilligrams": number | null
+  },
+  "ingredientsText": "exact visible ingredient text, preserving its original language" | null
+}
+
+Use status "unreadable" when no meaningful label text can be read. Use "incomplete" when some label text is legible but one or more requested fields are missing. Preserve decimal values exactly as shown and use numeric values only when the unit is unambiguous. Do not include calories from a serving different from the servingSize. Preserve non-English ingredient names exactly as printed; do not translate, summarize, or add ingredients.`,
+              },
+            ],
+          },
+        ],
+      });
+
+      const extraction = safeParseAiJson(
+        labelExtractionSchema,
+        response.choices[0]?.message?.content ?? "{}",
+      );
+      assertSafeEducationalText(extraction);
+      const result = labelAnalysisSchema.parse({
+        extraction,
+        ingredientAnalysis: analyzeIngredients(extraction.ingredientsText),
+      });
+      await recordUnclassifiedIngredientGaps(extraction.ingredientsText, null);
+      res.json(result);
+    } catch (err) {
+      console.error("POST /api/biotrace/label error:", err);
+      if (err instanceof SyntaxError) {
+        return res.status(500).json({ error: "Could not read the label response. Please try a clearer photo." });
+      }
+      res.status(500).json({ error: "Label analysis failed. Please try again with a clearer photo." });
+    }
+  });
+
+  app.post("/api/meal-photo", requireSession, aiRateLimit, async (req: Request, res: Response) => {
+    const input = validate(
+      z.object({
+        image: z.string().min(100).max(8_000_000).regex(/^[A-Za-z0-9+/=\s]+$/, "Image must be base64 encoded"),
+        imageType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional().default("image/jpeg"),
+      }).strict(),
+      req.body,
+      res,
+    );
+    if (!input) return;
+    if (!(await consumeAiQuota(req, res, "scan", SCAN_LIMIT))) return;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 1800,
+        response_format: { type: "json_object" },
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${input.imageType};base64,${input.image}`, detail: "high" } },
+            {
+              type: "text",
+              text: `Inspect this plated meal photo. Identify only foods that are visibly supported. Do not infer hidden ingredients, nutrition, glycemic index, glucose response, medication advice, or a health score. Portion estimates are approximate visual estimates and must include grams so the user can correct them. When an item cannot be identified, put a short visual description in unknownItems instead of guessing.
+
+Return ONLY JSON:
+{
+  "status": "ready" | "incomplete" | "unreadable",
+  "mealName": "short neutral meal description",
+  "detections": [{
+    "id": "stable short id such as food-1",
+    "name": "visible food name",
+    "searchTerm": "precise generic USDA search phrase, including cooked/raw when visibly supportable",
+    "confidence": "low" | "medium" | "high",
+    "portionLabel": "approximate visible portion such as about 1 cup",
+    "estimatedGrams": number,
+    "visibleEvidence": "what in the photo supports this identification"
+  }],
+  "unknownItems": ["short visual description"]
+}
+
+Use status unreadable if no plated food can be assessed. Use incomplete if any substantial visible item is unknown. Keep estimatedGrams between 5 and 2000. Do not use brand names unless clearly visible.`,
+            },
+          ],
+        }],
+      });
+      const vision = safeParseAiJson(mealPhotoVisionSchema, response.choices[0]?.message?.content ?? "{}");
+      assertSafeEducationalText(vision);
+      if (vision.status === "unreadable" || vision.detections.length === 0) {
+        return res.status(422).json({ error: "We couldn’t identify enough visible food. Try a brighter, closer photo of the whole plate." });
+      }
+
+      const items: MealPhotoItem[] = await Promise.all(vision.detections.map(async (detection) => {
+        try {
+          const candidates = await searchGenericFoods(detection.searchTerm, 20);
+          const resolution = resolveNamedGenericCandidates(detection.searchTerm, candidates, "USDA FoodData Central");
+          if (resolution.kind === "generic") {
+            const nutrition = normalizeNutritionTo100g(resolution.product.nutrition);
+            if (nutrition) {
+              return {
+                ...detection,
+                portionGrams: detection.estimatedGrams,
+                confirmed: false,
+                nutrition,
+                source: resolution.product.source,
+                matchedFoodName: resolution.product.name,
+                resolutionNote: resolution.product.resolution?.explanation ?? "USDA returned a generic food match. Confirm the food and portion.",
+              };
+            }
+          }
+          return {
+            ...detection,
+            portionGrams: detection.estimatedGrams,
+            confirmed: false,
+            nutrition: null,
+            source: null,
+            matchedFoodName: null,
+            resolutionNote: resolution.kind === "confirmation-required"
+              ? resolution.reason
+              : "No single provider-supported nutrition match was available. Nutrition was not guessed.",
+          };
+        } catch (error) {
+          console.error("Meal photo nutrition lookup failed:", detection.searchTerm, error);
+          return {
+            ...detection,
+            portionGrams: detection.estimatedGrams,
+            confirmed: false,
+            nutrition: null,
+            source: null,
+            matchedFoodName: null,
+            resolutionNote: "Nutrition lookup was temporarily unavailable. The food remains visible for confirmation.",
+          };
+        }
+      }));
+
+      const analysis = calculateMealPhotoAnalysis({
+        mealName: vision.mealName,
+        items,
+        unknownItems: vision.unknownItems,
+      });
+      res.json(mealPhotoResponseSchema.parse({
+        ...analysis,
+        saveToken: createMealAnalysisToken({
+          secret: mealTokenSecret,
+          sessionId: req.sessionIdentity!.id,
+          analysis,
+        }),
+      }));
+    } catch (error) {
+      console.error("POST /api/meal-photo error:", error);
+      res.status(500).json({ error: "Meal photo analysis failed. Please try again with a clearer photo." });
+    }
+  });
+
+  app.post("/api/meal-photo/saved", requireSession, async (req: Request, res: Response) => {
+    const parsed = z.object({
+      saveToken: z.string().min(40).max(30_000),
+      portions: z.array(z.object({
+        id: z.string().trim().min(1).max(60),
+        portionGrams: z.number().finite().min(1).max(3_000),
+        confirmed: z.boolean(),
+      }).strict()).max(20),
+    }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid meal analysis." });
+    try {
+      const canonical = verifyMealAnalysisToken({
+        secret: mealTokenSecret,
+        token: parsed.data.saveToken,
+        sessionId: req.sessionIdentity!.id,
+      });
+      const updates = new Map(parsed.data.portions.map((portion) => [portion.id, portion]));
+      const analysis = calculateMealPhotoAnalysis({
+        mealName: canonical.mealName,
+        unknownItems: canonical.unknownItems,
+        items: canonical.items.map((item) => {
+          const update = updates.get(item.id);
+          return update ? { ...item, portionGrams: update.portionGrams, confirmed: update.confirmed } : item;
+        }),
+      });
+      const [row] = await db.insert(mealPhotoAnalyses).values({
+        sessionId: req.sessionIdentity!.id,
+        mealName: analysis.mealName,
+        analysis,
+      }).returning();
+      res.status(201).json(row);
+    } catch (error) {
+      console.error("POST /api/meal-photo/saved error:", error);
+      res.status(500).json({ error: "Could not save this meal analysis." });
+    }
+  });
+
+  app.get("/api/meal-photo/saved", requireSession, async (req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(mealPhotoAnalyses)
+        .where(eq(mealPhotoAnalyses.sessionId, req.sessionIdentity!.id))
+        .orderBy(desc(mealPhotoAnalyses.id))
+        .limit(100);
+      res.json(rows);
+    } catch (error) {
+      console.error("GET /api/meal-photo/saved error:", error);
+      res.status(500).json({ error: "Could not load saved meal analyses." });
+    }
+  });
+
+  app.delete("/api/meal-photo/saved/:id", requireSession, async (req: Request, res: Response) => {
+    const input = validate(z.object({ id: z.coerce.number().int().positive() }), req.params, res);
+    if (!input) return;
+    try {
+      const deleted = await db.delete(mealPhotoAnalyses)
+        .where(and(eq(mealPhotoAnalyses.id, input.id), eq(mealPhotoAnalyses.sessionId, req.sessionIdentity!.id)))
+        .returning({ id: mealPhotoAnalyses.id });
+      if (!deleted.length) return res.status(404).json({ error: "Saved meal analysis not found." });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("DELETE /api/meal-photo/saved/:id error:", error);
+      res.status(500).json({ error: "Could not delete this saved meal analysis." });
+    }
+  });
+
   app.get("/api/confidence/:itemId", async (req: Request, res: Response) => {
     try {
       const rawItemId = req.params.itemId;
@@ -790,6 +1220,35 @@ Only include items you can clearly read. If image quality is poor, return empty 
     } catch (err) {
       console.error("POST /api/events error:", err);
       res.status(500).json({ error: "Failed to log event" });
+    }
+  });
+
+  app.get("/api/admin/biotrace/unclassified-ingredients", requireAdmin, async (req: Request, res: Response) => {
+    const input = validate(
+      z.object({ limit: z.coerce.number().int().min(1).max(500).optional().default(100) }),
+      req.query,
+      res,
+    );
+    if (!input) return;
+
+    try {
+      const ingredients = await db
+        .select({
+          canonicalId: biotraceUnclassifiedIngredients.canonicalId,
+          name: biotraceUnclassifiedIngredients.ingredientName,
+          count: biotraceUnclassifiedIngredients.count,
+        })
+        .from(biotraceUnclassifiedIngredients)
+        .orderBy(
+          desc(biotraceUnclassifiedIngredients.count),
+          biotraceUnclassifiedIngredients.ingredientName,
+        )
+        .limit(input.limit ?? 100);
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ ingredients });
+    } catch (err) {
+      console.error("GET /api/admin/biotrace/unclassified-ingredients error:", err);
+      res.status(500).json({ error: "Failed to load BioTrace ingredient reference gaps." });
     }
   });
 
@@ -1009,6 +1468,156 @@ Recommend the BEST single meal. Respond ONLY in valid JSON:
     }
   });
 
+  app.get("/api/admin/content-drafts", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      res.json({ drafts: await reviewableContentDrafts() });
+    } catch (error) {
+      console.error("GET /api/admin/content-drafts error:", error);
+      res.status(500).json({ error: "Could not load content drafts." });
+    }
+  });
+
+  app.get("/api/admin/tiktok/status", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      res.json(await getTikTokConnectionStatus());
+    } catch (error) {
+      console.error("GET /api/admin/tiktok/status error:", error);
+      res.status(500).json({ error: "Could not load TikTok connection status." });
+    }
+  });
+
+  app.post("/api/admin/tiktok/connect", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      res.json({ authorizationUrl: await startTikTokOAuth() });
+    } catch (error) {
+      if (tiktokErrorResponse(error, res)) return;
+      console.error("POST /api/admin/tiktok/connect error:", error);
+      res.status(500).json({ error: "Could not start TikTok authorization." });
+    }
+  });
+
+  app.get("/api/tiktok/callback", async (req: Request, res: Response) => {
+    const code = typeof req.query.code === "string" ? req.query.code : "";
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    const providerError = typeof req.query.error === "string" ? req.query.error : "";
+    if (providerError || !code || !state) {
+      res.redirect(303, "/admin/content?tiktok=cancelled");
+      return;
+    }
+
+    try {
+      await completeTikTokOAuth(code, state);
+      res.redirect(303, "/admin/content?tiktok=connected");
+    } catch (error) {
+      console.error("TikTok OAuth callback failed:", error instanceof TikTokApiError ? error.message : error);
+      res.redirect(303, "/admin/content?tiktok=failed");
+    }
+  });
+
+  app.post("/api/admin/content-drafts/:id/approve", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const draftId = typeof req.params.id === "string" ? req.params.id : "";
+      res.json({ draft: await approveContentDraft(draftId) });
+    } catch (error) {
+      if (error instanceof ContentDraftStoreError) {
+        const status = error.code === "invalid_id" ? 400 : error.code === "not_approvable" ? 409 : 404;
+        res.status(status).json({ error: error.message });
+        return;
+      }
+      console.error("POST /api/admin/content-drafts/:id/approve error:", error);
+      res.status(500).json({ error: "Could not approve this draft." });
+    }
+  });
+
+  app.post("/api/admin/content-drafts/:id/upload-tiktok", requireAdmin, async (req: Request, res: Response) => {
+    const draftId = typeof req.params.id === "string" ? req.params.id : "";
+    let uploadStarted = false;
+    let transferCompleted = false;
+    try {
+      const draft = (await reviewableContentDrafts()).find((candidate) => candidate.id === draftId);
+      if (!draft) throw new ContentDraftStoreError("not_found", "Draft not found.");
+      await beginTikTokUpload(draftId, draft.status);
+      uploadStarted = true;
+      const videoPath = await contentDraftStore.getVideoPath(draftId);
+      const accessToken = await getTikTokAccessToken();
+      await markTikTokTransferStarted(draftId);
+      const publishId = await uploadTikTokDraft(videoPath, accessToken);
+      transferCompleted = true;
+      const upload = await finishTikTokUpload(draftId, { publishId });
+      res.status(201).json({ upload });
+    } catch (error) {
+      if (error instanceof TikTokFlowError) {
+        if (uploadStarted && !transferCompleted && error.code !== "not_approved" && error.code !== "duplicate_upload") {
+          await finishTikTokUpload(draftId, { error: error.message }).catch(() => undefined);
+        }
+        tiktokErrorResponse(error, res);
+        return;
+      }
+      if (error instanceof ContentDraftStoreError) {
+        if (uploadStarted && !transferCompleted) {
+          await finishTikTokUpload(draftId, { error: "The approved video preview is no longer available." }).catch(() => undefined);
+        }
+        const status = error.code === "invalid_id" ? 400 : 404;
+        res.status(status).json({ error: error.message });
+        return;
+      }
+      const safeMessage = error instanceof TikTokApiError
+        ? error.message
+        : "TikTok Inbox upload failed. You can try again.";
+      if (uploadStarted && !transferCompleted) {
+        await finishTikTokUpload(draftId, { error: safeMessage }).catch(() => undefined);
+      }
+      console.error("POST /api/admin/content-drafts/:id/upload-tiktok error:", safeMessage);
+      res.status(502).json({
+        error: transferCompleted
+          ? "TikTok may have accepted this upload. Do not retry; check TikTok Inbox before taking another action."
+          : safeMessage,
+      });
+    }
+  });
+
+  app.post("/api/admin/content-drafts/:id/resolve-tiktok-upload", requireAdmin, async (req: Request, res: Response) => {
+    const draftId = typeof req.params.id === "string" ? req.params.id : "";
+    const action = req.body?.action;
+    if (action !== "retry_reserved" && action !== "confirm_not_in_inbox") {
+      res.status(400).json({ error: "Choose a valid TikTok upload recovery action." });
+      return;
+    }
+    try {
+      const draft = (await reviewableContentDrafts()).find((candidate) => candidate.id === draftId);
+      if (!draft) throw new ContentDraftStoreError("not_found", "Draft not found.");
+      if (draft.status !== "approved") throw new TikTokFlowError("not_approved", "Only approved drafts can be uploaded to TikTok Inbox.");
+      const upload = await resolveTikTokUpload(draftId, action);
+      res.json({ upload });
+    } catch (error) {
+      if (tiktokErrorResponse(error, res)) return;
+      if (error instanceof ContentDraftStoreError) {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+      console.error("POST /api/admin/content-drafts/:id/resolve-tiktok-upload error:", error);
+      res.status(500).json({ error: "Could not resolve the TikTok upload state." });
+    }
+  });
+
+  app.get("/api/admin/content-drafts/:id/video", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const draftId = typeof req.params.id === "string" ? req.params.id : "";
+      const videoPath = await contentDraftStore.getPreviewPath(draftId);
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Content-Type", videoPath.endsWith(".webm") ? "video/webm" : "video/mp4");
+      res.sendFile(videoPath);
+    } catch (error) {
+      if (error instanceof ContentDraftStoreError) {
+        const status = error.code === "invalid_id" ? 400 : 404;
+        res.status(status).json({ error: error.message });
+        return;
+      }
+      console.error("GET /api/admin/content-drafts/:id/video error:", error);
+      res.status(500).json({ error: "Could not load this video preview." });
+    }
+  });
+
   app.post("/api/ai-menu", requireSession, aiRateLimit, async (req: Request, res: Response) => {
     const input = validate(z.object({ restaurantName: z.string().trim().min(1).max(160) }), req.body, res);
     if (!input) return;
@@ -1078,52 +1687,116 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
   });
 
   // -------------------------------------------------------------------------
-  // BioTrace: food intelligence (Open Food Facts, no AI / no OpenAI quota)
+  // BioTrace: food intelligence (approved public providers, no AI / no OpenAI quota)
   // -------------------------------------------------------------------------
 
   function handleProviderError(err: unknown, res: Response, fallback: string): void {
     if (err instanceof ProviderError) {
-      res.status(err.status).json({ error: err.message, code: err.kind });
+      const safeMessages: Record<typeof err.kind, string> = {
+        not_found: "No approved food source found that product.",
+        invalid_barcode: "Barcode must be 8 to 14 digits.",
+        rate_limited: "Product lookup is temporarily busy. Please try again shortly.",
+        timeout: "Food data providers are temporarily unavailable. Please try again shortly.",
+        provider_unavailable: "Food data providers are temporarily unavailable. Please try again shortly.",
+      };
+      res.status(err.status).json({ error: safeMessages[err.kind], code: err.kind });
       return;
     }
     console.error(fallback, err);
     res.status(500).json({ error: fallback });
   }
 
-  /** Persists (best-effort) a normalized product into the shared cache. */
+  /** Persists a normalized product into the shared cache. */
   async function cacheProduct(product: NormalizedProduct): Promise<void> {
     if (!product.barcode) return;
-    try {
-      await db
-        .insert(biotraceProducts)
-        .values({ barcode: product.barcode, name: product.name, brand: product.brand ?? null, data: product })
-        .onConflictDoUpdate({
-          target: biotraceProducts.barcode,
-          set: { name: product.name, brand: product.brand ?? null, data: product, fetchedAt: new Date() },
-        });
-    } catch (error) {
-      console.error("BioTrace product cache write failed:", error);
-    }
+    await db
+      .insert(biotraceProducts)
+      .values({ barcode: product.barcode, name: product.name, brand: product.brand ?? null, data: product })
+      .onConflictDoUpdate({
+        target: biotraceProducts.barcode,
+        set: { name: product.name, brand: product.brand ?? null, data: product, fetchedAt: new Date() },
+      });
   }
 
-  async function readCachedProduct(barcode: string): Promise<NormalizedProduct | null> {
-    try {
-      const [cached] = await db
-        .select({ data: biotraceProducts.data })
+  const productCache: ProductCache = {
+    async read(barcode) {
+      const [row] = await db
+        .select({ data: biotraceProducts.data, fetchedAt: biotraceProducts.fetchedAt })
         .from(biotraceProducts)
         .where(eq(biotraceProducts.barcode, barcode))
         .limit(1);
-      return cached?.data ? (cached.data as NormalizedProduct) : null;
-    } catch (error) {
-      console.error("BioTrace product cache read failed:", error);
-      return null;
+      if (!row) return null;
+      return { product: row.data as NormalizedProduct, fetchedAt: row.fetchedAt };
+    },
+    write: cacheProduct,
+  };
+
+  async function resolveProduct(
+    barcode: string,
+    evidenceType: "gtin" | "gs1-gtin" | "retailer-specific-produce-id" | "branded-produce-sticker" = "gtin",
+  ): Promise<NormalizedProduct> {
+    return resolveBarcodeProduct({
+      barcode,
+      evidenceType,
+      cache: productCache,
+      lookup: lookupByBarcode,
+    });
+  }
+
+  function bioTraceProfileFromRequest(req: Request): BioTraceProfile | undefined {
+    const raw = req.get("X-BioTrace-Profile");
+    if (!raw || raw.length > 2_048) return undefined;
+    try {
+      const parsed = bioTraceProfileSchema.safeParse(JSON.parse(raw));
+      return parsed.success ? parsed.data : undefined;
+    } catch {
+      return undefined;
     }
   }
 
-  const biotraceRatedProduct = (product: NormalizedProduct) => ({
+  const biotraceRatedProduct = (product: NormalizedProduct, profile?: BioTraceProfile) => ({
     product,
-    rating: computeBioTraceRating(product),
+    rating: computeBioTraceRating(product, profile),
+    ingredientAnalysis: analyzeIngredients(product.ingredientsText, product.ingredientsStructured),
   });
+
+  async function recordUnclassifiedIngredientGaps(
+    ingredientsText: string | null | undefined,
+    structuredIngredients: NormalizedProduct["ingredientsStructured"],
+  ): Promise<void> {
+    const entries = collectUnclassifiedIngredientTelemetry(ingredientsText, structuredIngredients);
+    if (!entries.length) return;
+
+    try {
+      await db
+        .insert(biotraceUnclassifiedIngredients)
+        .values(entries.map((entry) => ({
+          ingredientKey: entry.ingredientKey,
+          canonicalId: entry.canonicalId,
+          ingredientName: entry.ingredientName,
+          count: 1,
+        })))
+        .onConflictDoUpdate({
+          target: biotraceUnclassifiedIngredients.ingredientKey,
+          set: {
+            count: sql`${biotraceUnclassifiedIngredients.count} + 1`,
+          },
+        });
+    } catch (error) {
+      // Telemetry must never make a verified scan fail. Keep the failure
+      // visible to operators while retaining no scan-level fallback data.
+      console.error("BioTrace ingredient-gap telemetry failed:", error);
+    }
+  }
+
+  const personalizeStoredBioTraceRow = <T extends { product: unknown }>(
+    row: T,
+    profile: BioTraceProfile | undefined,
+  ) => {
+    if (!profile) return row;
+    const rating = computeBioTraceRating(row.product as NormalizedProduct, profile);
+    return { ...row, ratingLabel: rating.label, ratingScore: rating.score, rating };
+  };
 
   // Lookup a product by barcode.
   app.get(
@@ -1136,15 +1809,54 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
         return res.status(400).json({ error: "Barcode must be 8 to 14 digits.", code: "invalid_barcode" });
       }
       try {
-        const product = await lookupByBarcode(parsed.data);
-        await cacheProduct(product);
-        res.json({ ...biotraceRatedProduct(product), cached: false });
+        const product = await resolveProduct(parsed.data);
+        await recordUnclassifiedIngredientGaps(product.ingredientsText, product.ingredientsStructured);
+        res.json(biotraceRatedProduct(product, bioTraceProfileFromRequest(req)));
       } catch (err) {
-        const cached = await readCachedProduct(parsed.data);
-        if (cached) {
-          return res.json({ ...biotraceRatedProduct(cached), cached: true, stale: true });
+        if (err instanceof ProviderError && err.kind === "not_found") {
+          return res.json(buildUnknownIdentifierResult(parsed.data));
         }
         handleProviderError(err, res, "Failed to look up product.");
+      }
+    },
+  );
+
+  // Classify QR content without fetching arbitrary QR URLs. Only validated
+  // product identifiers continue to Open Food Facts.
+  app.post(
+    "/api/biotrace/qr",
+    requireSession,
+    productLookupRateLimit,
+    async (req: Request, res: Response) => {
+      const input = validate(
+        z.object({ payload: z.string().max(8_192) }).strict(),
+        req.body,
+        res,
+      );
+      if (!input) return;
+
+      const resolution = resolveBioTraceQrPayload(input.payload);
+      if (resolution.kind !== "barcode") {
+        return res.json(resolution);
+      }
+
+      try {
+        const evidenceType = resolution.source === "gs1-digital-link" ? "gs1-gtin" : "gtin";
+        const product = await resolveProduct(resolution.barcode, evidenceType);
+        await recordUnclassifiedIngredientGaps(product.ingredientsText, product.ingredientsStructured);
+        res.json({
+          kind: "product",
+          result: biotraceRatedProduct(product, bioTraceProfileFromRequest(req)),
+          qrSource: resolution.source,
+        });
+      } catch (err) {
+        if (err instanceof ProviderError && err.kind === "not_found") {
+          return res.json({
+            ...buildUnknownIdentifierResult(resolution.barcode),
+            qrSource: resolution.source,
+          });
+        }
+        handleProviderError(err, res, "Failed to look up the QR product.");
       }
     },
   );
@@ -1166,33 +1878,27 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
       );
       if (!input) return;
       try {
-        const result = await searchByName(input.q, input.page, input.pageSize);
-        res.json(result);
+        const { genericResolution, ...result } = await searchByName(input.q, input.page, input.pageSize);
+        let generic: typeof genericResolution | {
+          kind: "product";
+          result: ReturnType<typeof biotraceRatedProduct>;
+        } = genericResolution;
+        if (genericResolution.kind === "generic") {
+          await recordUnclassifiedIngredientGaps(
+            genericResolution.product.ingredientsText,
+            genericResolution.product.ingredientsStructured,
+          );
+          generic = {
+            kind: "product",
+            result: biotraceRatedProduct(genericResolution.product, bioTraceProfileFromRequest(req)),
+          };
+        }
+        res.json({ ...result, generic });
       } catch (err) {
         handleProviderError(err, res, "Product search failed.");
       }
     },
   );
-
-  app.get("/api/biotrace/usda/search", requireSession, productLookupRateLimit, async (req: Request, res: Response) => {
-    const input = validate(z.object({ q: z.string().trim().min(2).max(200), pageSize: z.coerce.number().int().min(1).max(20).optional().default(10) }), req.query, res);
-    if (!input) return;
-    try {
-      res.json({ hits: await searchUsdaFoods(input.q, input.pageSize), source: "usda-fooddata-central" });
-    } catch (err) {
-      handleProviderError(err, res, "USDA food search failed.");
-    }
-  });
-
-  app.get("/api/biotrace/usda/food/:id", requireSession, productLookupRateLimit, async (req: Request, res: Response) => {
-    const input = z.coerce.number().int().positive().safeParse(req.params.id);
-    if (!input.success) return res.status(400).json({ error: "Invalid USDA food ID." });
-    try {
-      res.json(biotraceRatedProduct(await lookupUsdaFood(input.data)));
-    } catch (err) {
-      handleProviderError(err, res, "USDA food lookup failed.");
-    }
-  });
 
   // Deterministic ranked alternatives for a barcode.
   app.get(
@@ -1211,11 +1917,18 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
       );
       if (!limitInput) return;
       try {
-        const product = await lookupByBarcode(parsed.data);
-        await cacheProduct(product);
-        const alternatives = await findAlternatives(product, limitInput.limit);
+        const product = await resolveProduct(parsed.data);
+        const profile = bioTraceProfileFromRequest(req);
+        const alternatives = await findAlternatives(product, limitInput.limit, profile);
+        await recordUnclassifiedIngredientGaps(product.ingredientsText, product.ingredientsStructured);
+        for (const alternative of alternatives) {
+          await recordUnclassifiedIngredientGaps(
+            alternative.product.ingredientsText,
+            alternative.product.ingredientsStructured,
+          );
+        }
         res.json({
-          source: biotraceRatedProduct(product),
+          source: biotraceRatedProduct(product, profile),
           alternatives,
         });
       } catch (err) {
@@ -1227,13 +1940,12 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
   // Record a scan / lookup into owner-scoped history.
   const biotraceHistoryItemSchema = z.object({
     barcode: barcodeSchema,
-    source: z.enum(["barcode", "search", "manual"]).optional().default("barcode"),
+    source: z.enum(["barcode", "search", "manual", "qr"]).optional().default("barcode"),
     note: z.string().trim().max(500).nullable().optional().default(null),
   });
 
   async function providerBackedHistoryItem(input: { barcode: string }) {
-    const product = await lookupByBarcode(input.barcode);
-    await cacheProduct(product);
+    const product = await resolveProduct(input.barcode);
     const rating = computeBioTraceRating(product);
     return { product, rating };
   }
@@ -1243,21 +1955,40 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
     if (!input) return;
     try {
       const { product, rating } = await providerBackedHistoryItem(input);
-      const [row] = await db
-        .insert(biotraceScans)
-        .values({
-          sessionId: req.sessionIdentity!.id,
-          barcode: product.barcode,
-          productName: product.name,
-          brand: product.brand,
-          ratingLabel: rating.label,
-          ratingScore: rating.score,
-          product,
-          rating,
-          source: input.source ?? "barcode",
-        })
-        .returning();
-      res.status(201).json(row);
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - BIOTRACE_DUPLICATE_WINDOW_MS);
+      const result = await db.transaction(async (tx) => {
+        const canonicalBarcode = product.barcode ? canonicalBioTraceBarcode(product.barcode) : null;
+        // Serialize this owner/product window so concurrent requests cannot
+        // both pass the duplicate check before either inserts its row.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`biotrace-scan:${req.sessionIdentity!.id}:${canonicalBarcode ?? "unknown"}`}))`);
+        const recent = await tx
+          .select()
+          .from(biotraceScans)
+          .where(and(eq(biotraceScans.sessionId, req.sessionIdentity!.id), gte(biotraceScans.createdAt, cutoff)))
+          .orderBy(desc(biotraceScans.createdAt))
+          .limit(200);
+        const duplicate = recent.find((row) =>
+          isBioTraceDuplicateWithinWindow(row.barcode, row.createdAt, canonicalBarcode ?? "", now),
+        );
+        if (duplicate) return { row: duplicate, duplicate: true };
+        const [row] = await tx
+          .insert(biotraceScans)
+          .values({
+            sessionId: req.sessionIdentity!.id,
+            barcode: canonicalBarcode,
+            productName: product.name,
+            brand: product.brand,
+            ratingLabel: rating.label,
+            ratingScore: rating.score,
+            product,
+            rating,
+            source: input.source ?? "barcode",
+          })
+          .returning();
+        return { row, duplicate: false };
+      });
+      res.status(result.duplicate ? 200 : 201).json(result.row);
     } catch (err) {
       handleProviderError(err, res, "Failed to save scan.");
     }
@@ -1271,7 +2002,8 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
         .where(eq(biotraceScans.sessionId, req.sessionIdentity!.id))
         .orderBy(desc(biotraceScans.id))
         .limit(200);
-      res.json(rows);
+      const profile = bioTraceProfileFromRequest(req);
+      res.json(rows.map((row) => personalizeStoredBioTraceRow(row, profile)));
     } catch (err) {
       console.error("GET /api/biotrace/scans error:", err);
       res.status(500).json({ error: "Failed to load scan history." });
@@ -1315,7 +2047,8 @@ Include 10-15 illustrative items covering common menu sections. Use cautious rea
         .where(eq(biotraceSavedFoods.sessionId, req.sessionIdentity!.id))
         .orderBy(desc(biotraceSavedFoods.id))
         .limit(200);
-      res.json(rows);
+      const profile = bioTraceProfileFromRequest(req);
+      res.json(rows.map((row) => personalizeStoredBioTraceRow(row, profile)));
     } catch (err) {
       console.error("GET /api/biotrace/saved error:", err);
       res.status(500).json({ error: "Failed to load saved foods." });

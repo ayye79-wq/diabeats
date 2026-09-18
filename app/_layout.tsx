@@ -6,9 +6,10 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
@@ -34,14 +35,33 @@ function ConsentModalWrapper() {
 
 function RootLayoutNav() {
   const { onboardingComplete } = useApp();
+  const pathname = usePathname();
+  const isSharedBioTraceProduct =
+    Platform.OS === "web" && /^\/biotrace-product\/\d{8,14}$/.test(pathname);
+  const isSharedRestaurant =
+    Platform.OS === "web" && /^\/restaurant\/[^/]+$/.test(pathname);
+  const isSharedMeal =
+    Platform.OS === "web" && /^\/meal\/[^/]+\/[^/]+$/.test(pathname);
 
-  if (!onboardingComplete) {
+  // A browser visitor may open a shared detail link before they complete
+  // onboarding. Keep native onboarding unchanged, but allow web-only public
+  // detail routes to load their verified data directly.
+  if (
+    !onboardingComplete &&
+    !isSharedBioTraceProduct &&
+    !isSharedRestaurant &&
+    !isSharedMeal
+  ) {
     return <OnboardingScreen />;
   }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="biotrace-product/[barcode]"
+        options={{ headerShown: false, presentation: "card" }}
+      />
       <Stack.Screen
         name="restaurant/[id]"
         options={{ headerShown: false, presentation: "card" }}
@@ -106,14 +126,26 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const [fontStartupTimedOut, setFontStartupTimedOut] = useState(false);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      void SplashScreen.hideAsync();
+      return;
     }
+
+    // A development simulator can occasionally delay font resolution. Do not
+    // leave the user on the native splash screen indefinitely: React Native
+    // falls back to the system font until the Inter assets become available.
+    const timeout = setTimeout(() => {
+      setFontStartupTimedOut(true);
+      void SplashScreen.hideAsync();
+    }, 2000);
+
+    return () => clearTimeout(timeout);
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError && !fontStartupTimedOut) return null;
 
   return (
     <ErrorBoundary>

@@ -1,6 +1,11 @@
 import type { NormalizedProduct } from "../../shared/biotrace";
 import { ProviderError } from "../../shared/biotrace";
-import { computeBioTraceRating, type BioTraceRating } from "../../shared/biotrace-rating";
+import {
+  computeBioTraceRating,
+  type BioTraceProfile,
+  type BioTraceRating,
+} from "../../shared/biotrace-rating";
+import { analyzeIngredients, type IngredientAnalysis } from "../../shared/biotrace-ingredients";
 import { normalizeProduct } from "./open-food-facts";
 
 /**
@@ -24,6 +29,7 @@ const ALT_FIELDS = [
   "categories_tags",
   "image_front_url",
   "ingredients_text",
+  "ingredients",
   "ingredients_analysis_tags",
   "additives_tags",
   "labels_tags",
@@ -35,7 +41,7 @@ const ALT_FIELDS = [
   "completeness",
 ].join(",");
 
-export type Alternative = { product: NormalizedProduct; rating: BioTraceRating };
+export type Alternative = { product: NormalizedProduct; rating: BioTraceRating; ingredientAnalysis: IngredientAnalysis };
 
 async function offFetch(url: string): Promise<unknown> {
   const controller = new AbortController();
@@ -80,6 +86,7 @@ function chooseCategory(product: NormalizedProduct): string | null {
 export async function findAlternatives(
   product: NormalizedProduct,
   limit = 5,
+  profile?: BioTraceProfile,
 ): Promise<Alternative[]> {
   const category = chooseCategory(product);
   if (!category) return [];
@@ -112,7 +119,7 @@ export async function findAlternatives(
   }
 
   const productsRaw = Array.isArray(json["products"]) ? (json["products"] as unknown[]) : [];
-  const sourceScore = computeBioTraceRating(product).score;
+  const sourceScore = computeBioTraceRating(product, profile).score;
   const seen = new Set<string>();
   if (product.barcode) seen.add(product.barcode);
 
@@ -124,11 +131,11 @@ export async function findAlternatives(
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const rating = computeBioTraceRating(candidate);
+    const rating = computeBioTraceRating(candidate, profile);
     if (rating.label === "insufficient-information") continue;
     if (rating.score <= sourceScore) continue;
 
-    candidates.push({ product: candidate, rating });
+    candidates.push({ product: candidate, rating, ingredientAnalysis: analyzeIngredients(candidate.ingredientsText, candidate.ingredientsStructured) });
   }
 
   // Deterministic ranking: score desc, then Nutri-Score asc (a<e), then NOVA

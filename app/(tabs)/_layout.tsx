@@ -19,7 +19,7 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: c.tint,
         tabBarInactiveTintColor: c.tabIconDefault,
         tabBarStyle: {
-          position: "absolute",
+          ...(isIOS ? { position: "absolute" } : {}),
           backgroundColor: isIOS ? "transparent" : isDark ? "#0B1810" : "#ffffff",
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: isDark ? "#1E3328" : "#E2F0E8",
@@ -51,6 +51,7 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: "Discover",
+          tabBarButtonTestID: "tab-discover",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="restaurant-outline" size={size} color={color} />
           ),
@@ -60,6 +61,7 @@ function ClassicTabLayout() {
         name="scan-hub"
         options={{
           title: "Scan",
+          tabBarButtonTestID: "tab-scan",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="scan-outline" size={size} color={color} />
           ),
@@ -78,9 +80,16 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="plate"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="saved"
         options={{
           title: "Saved",
+          tabBarButtonTestID: "tab-saved",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="heart-outline" size={size} color={color} />
           ),
@@ -90,6 +99,7 @@ function ClassicTabLayout() {
         name="chat"
         options={{
           title: "Assistant",
+          tabBarButtonTestID: "tab-assistant",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
           ),
@@ -99,6 +109,7 @@ function ClassicTabLayout() {
         name="profile"
         options={{
           title: "Profile",
+          tabBarButtonTestID: "tab-profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),

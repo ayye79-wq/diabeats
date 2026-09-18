@@ -1,18 +1,31 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { formatFailureLog, writeGitHubFailureSummary } from "./failure-report";
+import { EMPTY_GENERATION_STATE, parseGenerationState, serializeGenerationState, type GenerationState } from "./generation-state";
 import { createVoiceover, generateContent } from "./generator";
+import { ROTATION_HISTORY_LIMIT, rotationPackageForId } from "./rotation";
 import { validateContent } from "./safety";
 import { uploadTikTokDraft } from "./tiktok";
 import type { ContentPackage } from "./types";
-import { renderVerticalVideo } from "./video";
+import { renderBrowserPreview, renderVerticalVideo } from "./video";
 
 const root = path.resolve("content-agent");
 const outbox = path.join(root, "outbox");
 const published = path.join(root, "published");
 const stateFile = path.join(root, "state.json");
 
-async function state(): Promise<{ recentTopics: string[] }> {
-  try { return JSON.parse(await readFile(stateFile, "utf8")); } catch { return { recentTopics: [] }; }
+async function state(): Promise<GenerationState> {
+  try {
+    return parseGenerationState(JSON.parse(await readFile(stateFile, "utf8")));
+  } catch {
+    return { ...EMPTY_GENERATION_STATE };
+  }
+}
+
+async function saveState(nextState: GenerationState) {
+  const temporaryStateFile = `${stateFile}.tmp`;
+  await writeFile(temporaryStateFile, serializeGenerationState(nextState));
+  await rename(temporaryStateFile, stateFile);
 }
 async function load(id: string) { return JSON.parse(await readFile(path.join(outbox, `${id}.json`), "utf8")) as ContentPackage; }
 async function save(item: ContentPackage) { await writeFile(path.join(outbox, `${item.id}.json`), JSON.stringify(item, null, 2)); }
@@ -23,14 +36,20 @@ async function main(): Promise<void> {
   const [command, id] = process.argv.slice(2);
   if (command === "generate") {
     const s = await state();
-    const item = await generateContent(s.recentTopics);
+    const item = await generateContent(s.recentTopics, s.recentRotationPackageIds);
+    const rotationPackage = rotationPackageForId(item.rotationPackageId!);
     const audioPath = path.join(outbox, `${item.id}.mp3`);
     const videoPath = path.join(outbox, `${item.id}.mp4`);
+    const previewPath = path.join(outbox, `${item.id}.webm`);
     await createVoiceover(item.voiceover, audioPath);
-    await renderVerticalVideo(audioPath, videoPath, item);
+    await renderVerticalVideo(audioPath, videoPath, item, { assetPaths: rotationPackage.assetPaths });
+    await renderBrowserPreview(videoPath, previewPath);
     item.videoPath = videoPath;
     await save(item);
-    await writeFile(stateFile, JSON.stringify({ recentTopics: [item.topic, ...s.recentTopics].slice(0, 30) }, null, 2));
+    await saveState({
+      recentTopics: [item.topic, ...s.recentTopics].slice(0, 30),
+      recentRotationPackageIds: [item.rotationPackageId!, ...s.recentRotationPackageIds].slice(0, ROTATION_HISTORY_LIMIT),
+    });
     console.log(JSON.stringify({ id: item.id, status: item.status, topic: item.topic }));
   } else if (command === "approve" && id) {
     const item = await load(id); item.status = "approved"; await save(item); console.log(`Approved ${id}`);
@@ -49,6 +68,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
+  console.error(formatFailureLog(error));
+  return writeGitHubFailureSummary(error)
+    .catch(() => undefined)
+    .finally(() => {
+      process.exitCode = 1;
+    });
 });

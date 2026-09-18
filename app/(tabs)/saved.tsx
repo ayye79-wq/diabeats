@@ -24,12 +24,18 @@ import { useApp } from "@/context/AppContext";
 import type { BloodSugarOutcome } from "@/context/AppContext";
 import { apiRequest } from "@/lib/query-client";
 import {
+  computeBioTraceRating,
+  getBioTraceProfileHeaders,
+  type BioTraceProfile,
+} from "@/shared/biotrace-rating";
+import {
   clearLocalBioTraceScans,
-  getLocalBioTraceScans,
+  getPendingLocalBioTraceScans,
   removeLocalBioTraceScan,
   syncPendingBioTraceScans,
   type LocalBioTraceScan,
 } from "@/lib/biotrace-history";
+import { mealPhotoAnalysisSchema, type MealPhotoAnalysis } from "@/shared/meal-photo";
 
 const OUTCOME_CONFIG: Record<BloodSugarOutcome, { label: string; color: string; bg: string; icon: string }> = {
   good: { label: "Stable", color: "#166534", bg: "#dcfce7", icon: "checkmark-circle" },
@@ -38,10 +44,11 @@ const OUTCOME_CONFIG: Record<BloodSugarOutcome, { label: string; color: string; 
   not_measured: { label: "Not measured", color: "#4b5563", bg: "#f3f4f6", icon: "remove-circle-outline" },
 };
 
-type Tab = "restaurants" | "meals" | "foods" | "scans" | "logs";
+type Tab = "restaurants" | "meals" | "plates" | "foods" | "scans" | "logs";
 
 type SavedBioTraceFood = {
   id: number;
+  barcode: string | null;
   productName: string;
   brand: string | null;
   ratingLabel: string;
@@ -51,6 +58,7 @@ type SavedBioTraceFood = {
 
 type BioTraceScan = {
   id: number;
+  barcode: string | null;
   productName: string;
   brand: string | null;
   ratingLabel: string;
@@ -58,6 +66,12 @@ type BioTraceScan = {
   source: string;
 };
 type DisplayBioTraceScan = BioTraceScan | LocalBioTraceScan;
+type SavedPlateAnalysis = {
+  id: number;
+  mealName: string;
+  analysis: MealPhotoAnalysis;
+  createdAt: string | null;
+};
 
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
@@ -72,8 +86,20 @@ export default function SavedScreen() {
     toggleSaveRestaurant, 
     toggleSaveMeal,
     mealLog,
-    removeMealLog
+    removeMealLog,
+    diabetesType,
+    dietGoal,
+    dailyCarbTarget,
+    usesInsulin,
   } = useApp();
+  const bioTraceProfile = useMemo<BioTraceProfile>(
+    () => ({ diabetesType, dietGoal, dailyCarbTarget, usesInsulin }),
+    [dailyCarbTarget, diabetesType, dietGoal, usesInsulin],
+  );
+  const profileHeaders = useMemo(
+    () => getBioTraceProfileHeaders(bioTraceProfile),
+    [bioTraceProfile],
+  );
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
@@ -82,35 +108,49 @@ export default function SavedScreen() {
     queryKey: ["/api/restaurants"],
   });
   const { data: savedBioTraceFoods = [], refetch: refetchSavedBioTraceFoods } = useQuery<SavedBioTraceFood[]>({
-    queryKey: ["/api/biotrace/saved"],
+    queryKey: ["/api/biotrace/saved", bioTraceProfile],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/biotrace/saved");
+      const response = await apiRequest("GET", "/api/biotrace/saved", undefined, profileHeaders);
       return response.json();
     },
   });
   const { data: bioTraceScans = [], refetch: refetchBioTraceScans } = useQuery<BioTraceScan[]>({
-    queryKey: ["/api/biotrace/scans"],
+    queryKey: ["/api/biotrace/scans", bioTraceProfile],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/biotrace/scans");
+      const response = await apiRequest("GET", "/api/biotrace/scans", undefined, profileHeaders);
       return response.json();
+    },
+  });
+  const { data: savedPlateAnalyses = [], refetch: refetchSavedPlateAnalyses } = useQuery<SavedPlateAnalysis[]>({
+    queryKey: ["/api/meal-photo/saved"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/meal-photo/saved");
+      const rows: unknown = await response.json();
+      if (!Array.isArray(rows)) return [];
+      return rows.flatMap((row: any) => {
+        const parsed = mealPhotoAnalysisSchema.safeParse(row?.analysis);
+        return parsed.success
+          ? [{ id: Number(row.id), mealName: String(row.mealName), analysis: parsed.data, createdAt: row.createdAt ?? null }]
+          : [];
+      });
     },
   });
   const refreshLocalScans = useCallback(async () => {
     await syncPendingBioTraceScans();
-    setPendingLocalScans(await getLocalBioTraceScans());
+    setPendingLocalScans(await getPendingLocalBioTraceScans());
   }, []);
   useEffect(() => {
     void refreshLocalScans();
   }, [refreshLocalScans]);
   const visibleBioTraceScans = useMemo<DisplayBioTraceScan[]>(
-    () => {
-      const localKeys = new Set(pendingLocalScans.map((scan) => `${scan.barcode}:${scan.scannedAt.slice(0, 16)}`));
-      return [
-        ...pendingLocalScans,
-        ...bioTraceScans.filter((scan: any) => !localKeys.has(`${scan.barcode ?? ""}:${(scan.scannedAt ?? "").slice(0, 16)}`)),
-      ];
-    },
-    [bioTraceScans, pendingLocalScans],
+    () => [
+      ...pendingLocalScans.map((scan) => {
+        const rating = computeBioTraceRating(scan.product, bioTraceProfile);
+        return { ...scan, rating, ratingLabel: rating.label };
+      }),
+      ...bioTraceScans,
+    ],
+    [bioTraceProfile, bioTraceScans, pendingLocalScans],
   );
 
   const savedRestaurantList = useMemo(() => 
@@ -131,6 +171,15 @@ export default function SavedScreen() {
     [...mealLog].sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()),
     [mealLog]
   );
+
+  const openBioTraceProduct = (barcode: string | null) => {
+    if (!barcode) {
+      Alert.alert("Product unavailable", "This saved item does not include a barcode to reload its verified BioTrace result.");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({ pathname: "/biotrace-product/[barcode]" as any, params: { barcode } });
+  };
 
   const handleDeleteLog = (id: string) => {
     if (Platform.OS === "web") {
@@ -164,6 +213,25 @@ export default function SavedScreen() {
       return;
     }
     Alert.alert("Remove saved food", `Remove ${food.productName} from your BioTrace foods?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => void remove() },
+    ]);
+  };
+
+  const handleDeletePlateAnalysis = (meal: SavedPlateAnalysis) => {
+    const remove = async () => {
+      try {
+        await apiRequest("DELETE", `/api/meal-photo/saved/${meal.id}`);
+        await refetchSavedPlateAnalyses();
+      } catch {
+        Alert.alert("Couldn’t remove meal", "Please try again.");
+      }
+    };
+    if (Platform.OS === "web") {
+      if (confirm(`Remove ${meal.mealName} from saved plate analyses?`)) void remove();
+      return;
+    }
+    Alert.alert("Remove saved meal", `Remove ${meal.mealName}? The original photo was never stored.`, [
       { text: "Cancel", style: "cancel" },
       { text: "Remove", style: "destructive", onPress: () => void remove() },
     ]);
@@ -234,8 +302,9 @@ export default function SavedScreen() {
           {([
             { id: "restaurants" as Tab, label: `Places (${savedRestaurantList.length})` },
             { id: "meals" as Tab, label: `Meals (${savedMealList.length})` },
-              { id: "foods" as Tab, label: `Foods (${savedBioTraceFoods.length})` },
-              { id: "scans" as Tab, label: `Scans (${visibleBioTraceScans.length})` },
+              { id: "plates" as Tab, label: `Plate Analyses (${savedPlateAnalyses.length})` },
+              { id: "foods" as Tab, label: `BioTrace Foods (${savedBioTraceFoods.length})` },
+              { id: "scans" as Tab, label: `BioTrace Scans (${visibleBioTraceScans.length})` },
             { id: "logs" as Tab, label: `Logs (${mealLog.length})` },
           ]).map((t) => (
             <Pressable
@@ -346,6 +415,66 @@ export default function SavedScreen() {
               </Pressable>
             ))
           )
+        ) : tab === "plates" ? (
+          savedPlateAnalyses.length === 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="camera-outline" size={48} color={c.textMuted} />
+              <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>No saved plate analyses</Text>
+              <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+                Analyze a plated meal and save its structured estimate here. Meal photos are never stored.
+              </Text>
+              <Pressable
+                onPress={() => router.push("/(tabs)/plate")}
+                style={styles.scanFoodButton}
+                accessibilityRole="button"
+                accessibilityLabel="Analyze a meal photo"
+              >
+                <Text style={styles.scanFoodButtonText}>Analyze a plate</Text>
+              </Pressable>
+            </View>
+          ) : (
+            savedPlateAnalyses.map((meal) => {
+              const tone = meal.analysis.impact.level === "low"
+                ? { bg: "#DCFCE7", color: "#166534", label: "Low estimate" }
+                : meal.analysis.impact.level === "moderate"
+                  ? { bg: "#FEF3C7", color: "#92400E", label: "Moderate estimate" }
+                  : meal.analysis.impact.level === "high"
+                    ? { bg: "#FEE2E2", color: "#991B1B", label: "High estimate" }
+                    : { bg: "#E5E7EB", color: "#374151", label: "Needs review" };
+              return (
+                <Pressable
+                  key={meal.id}
+                  onPress={() => router.push({ pathname: "/(tabs)/plate" as any, params: { savedId: String(meal.id) } })}
+                  style={({ pressed }) => [
+                    styles.mealCard,
+                    { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.92 : 1 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open saved plate analysis for ${meal.mealName}`}
+                >
+                  <View style={styles.mealCardHeader}>
+                    <View style={styles.mealCardInfo}>
+                      <Text style={[styles.mealName, { color: c.textPrimary }]} numberOfLines={1}>{meal.mealName}</Text>
+                      <Text style={[styles.mealRestaurant, { color: c.textSecondary }]}>
+                        {meal.analysis.items.length} visible foods · photo not stored
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => handleDeletePlateAnalysis(meal)} hitSlop={12} accessibilityLabel={`Remove ${meal.mealName}`}>
+                      <Ionicons name="trash-outline" size={18} color={Colors.brand.avoid} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.mealCardFooter}>
+                    <View style={[styles.foodRating, { backgroundColor: tone.bg }]}>
+                      <Text style={[styles.foodRatingText, { color: tone.color }]}>{tone.label}</Text>
+                    </View>
+                    <Text style={[styles.carbRange, { color: c.textMuted }]}>
+                      {meal.analysis.totals.carbohydratesGrams === null ? "Carbs unavailable" : `${meal.analysis.totals.carbohydratesGrams}g carbs`}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })
+          )
         ) : tab === "foods" ? (
           savedBioTraceFoods.length === 0 ? (
             <View style={styles.empty}>
@@ -376,7 +505,7 @@ export default function SavedScreen() {
               return (
                 <Pressable
                   key={food.id}
-                  onPress={() => router.push("/(tabs)/biotrace")}
+                  onPress={() => openBioTraceProduct(food.barcode)}
                   style={({ pressed }) => [
                     styles.mealCard,
                     { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.92 : 1 },
@@ -388,7 +517,7 @@ export default function SavedScreen() {
                         {food.productName}
                       </Text>
                       <Text style={[styles.mealRestaurant, { color: c.textSecondary }]} numberOfLines={1}>
-                        {food.brand ?? "Brand not listed"} · BioTrace
+                        {food.brand ?? "Brand not listed"} · BioTrace verified label
                       </Text>
                     </View>
                     <Pressable
@@ -433,14 +562,23 @@ export default function SavedScreen() {
                 <Text style={styles.clearHistoryText}>Clear all scan history</Text>
               </Pressable>
               {visibleBioTraceScans.map((scan) => (
-                <View key={"localId" in scan ? scan.localId : scan.id} style={[styles.mealCard, { backgroundColor: c.cardBg, borderColor: c.border }]}>
+                <Pressable
+                  key={"localId" in scan ? scan.localId : scan.id}
+                  onPress={() => openBioTraceProduct(scan.barcode)}
+                  style={({ pressed }) => [
+                    styles.mealCard,
+                    { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.92 : 1 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open the current verified BioTrace result for ${scan.productName}`}
+                >
                   <View style={styles.mealCardHeader}>
                     <View style={styles.mealCardInfo}>
                       <Text style={[styles.mealName, { color: c.textPrimary }]} numberOfLines={1}>
                         {scan.productName}
                       </Text>
                       <Text style={[styles.mealRestaurant, { color: c.textSecondary }]} numberOfLines={1}>
-                        {scan.brand ?? "Brand not listed"} · {scan.source === "search" ? "Product search" : "Barcode scan"}{"localId" in scan ? " · Waiting to sync" : ""}
+                        {scan.brand ?? "Brand not listed"} · BioTrace verified label · {scan.source === "search" ? "Product search" : scan.source === "qr" ? "QR code" : "Barcode scan"}{"localId" in scan ? " · Waiting to sync" : ""}
                       </Text>
                     </View>
                     <Pressable
@@ -461,7 +599,7 @@ export default function SavedScreen() {
                         {scan.scannedAt ? new Date(scan.scannedAt).toLocaleString() : "Recent scan"}
                     </Text>
                   </View>
-                </View>
+                </Pressable>
               ))}
             </>
           )

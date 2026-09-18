@@ -1,0 +1,55 @@
+Improve the filter section on the DiabEats Discover/Home screen without changing the existing filtering logic, restaurant data, card design, navigation, or overall visual style.
+
+1. First filter row
+- Add the small section label: “Blood Sugar Impact”
+- Keep the existing four filters:
+  All
+  Friendly
+  Moderate
+  Caution
+
+2. Second filter row
+- Add the small section label: “Cuisine”
+- Rename its current “All” option to “All Cuisines”
+- Keep the existing cuisine-filtering behavior unchanged.
+- Show only these common options initially:
+  All Cuisines
+  American
+  Mediterranean
+  Japanese
+- Add a “More” control that opens the complete existing list of cuisine categories.
+- Do not delete any of the current 24 cuisine categories.
+
+3. Safety wording
+Replace:
+“Find Safe Meal Near Me”
+with:
+“Find Blood-Sugar-Friendly Meals”
+
+Replace:
+“Curated safe meals”
+with:
+“Curated better choices”
+
+Replace restaurant labels such as:
+“2 of 5 safe”
+with:
+“2 of 5 better choices”
+
+Search this Discover screen and its related components for any other user-facing claims that describe meals as “safe.” Replace them with accurate language such as “blood-sugar-friendly,” “better choice,” or “lower-impact,” depending on context.
+
+4. Layout requirements
+- Preserve the current green theme, spacing system, rounded pills, typography, and horizontal filter behavior.
+- Make the new section labels subtle but clearly readable.
+- Ensure every control fits correctly on small iPhone screens.
+- No clipped or overlapping text.
+- The restaurant results should remain close to the filters without unnecessary empty space.
+- Do not change anything outside the Discover/Home screen unless it is a shared component required for these exact wording changes.
+
+Before finishing, test:
+- All four Blood Sugar Impact filters.
+- All 24 cuisine filters through “More.”
+- “All Cuisines” correctly resets cuisine filtering.
+- Selecting one filter does not incorrectly reset the other filter.
+- The restaurant count updates correctly.
+- The layout works on narrow mobile screens.

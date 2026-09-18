@@ -12,21 +12,21 @@ interface Props {
 
 const CONFIG: Record<Score, { label: string; icon: string; bg: string; text: string; border: string }> = {
   good: {
-    label: "Better Choice",
+    label: "Better choice",
     icon: "checkmark-circle",
     bg: Colors.brand.goodLight,
     text: Colors.brand.goodText,
     border: Colors.brand.good,
   },
   caution: {
-    label: "Use Caution",
+    label: "Moderate impact",
     icon: "warning",
     bg: Colors.brand.cautionLight,
     text: Colors.brand.cautionText,
     border: Colors.brand.caution,
   },
   avoid: {
-    label: "Limit or Avoid",
+    label: "Higher impact",
     icon: "close-circle",
     bg: Colors.brand.avoidLight,
     text: Colors.brand.avoidText,

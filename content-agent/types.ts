@@ -16,6 +16,9 @@ export interface ContentPackage {
   hashtags: string[];
   disclaimer: string;
   callToAction: string;
+  rotationPackageId?: string;
+  rotationImageSetId?: string;
+  presentationTemplate?: string;
   videoPath?: string;
   publishId?: string;
 }

@@ -1,0 +1,54 @@
+{
+  "id": "diabeats-promo-v2-preview",
+  "createdAt": "2026-08-22T13:12:13.407Z",
+  "status": "draft",
+  "topic": "A quick nutrition comparison before you order",
+  "featureIds": [
+    "menu-item-information",
+    "meal-comparison"
+  ],
+  "featureClaims": [
+    {
+      "featureId": "menu-item-information",
+      "claim": "View restaurant menu-item details and nutrition information."
+    },
+    {
+      "featureId": "meal-comparison",
+      "claim": "Compare restaurant meals using the available meal comparison tools."
+    }
+  ],
+  "hook": "Before you order, compare this first",
+  "voiceover": "Before you order, take a quick look at the menu details. Check total carbohydrates and serving size. When you compare meals, notice protein and fiber alongside carbohydrates. For packaged foods, check carbohydrates per serving and ingredient order. Use the restaurant's posted nutrition or the package label to verify what you see.",
+  "scenes": [
+    {
+      "seconds": 4,
+      "onScreenText": "Before you order, compare this first",
+      "visual": "Restaurant meals on a warmly lit table."
+    },
+    {
+      "seconds": 5,
+      "onScreenText": "Check carbs + serving size",
+      "visual": "Restaurant meal detail and nutrition context."
+    },
+    {
+      "seconds": 6,
+      "onScreenText": "Compare carbs, protein + fiber",
+      "visual": "Two plated meals for a thoughtful comparison."
+    },
+    {
+      "seconds": 5,
+      "onScreenText": "Verify posted nutrition",
+      "visual": "A calm end card over realistic restaurant food."
+    }
+  ],
+  "caption": "A quick comparison can add helpful context before you order. Check serving size, carbohydrates, protein, and fiber, then verify official menu details.",
+  "hashtags": [
+    "#DiabEats",
+    "#EatingOut",
+    "#NutritionEducation",
+    "#MealComparison"
+  ],
+  "disclaimer": "General education only - not medical advice.",
+  "callToAction": "Explore DiabEats",
+  "presentationTemplate": "diabeats-social-v2"
+}

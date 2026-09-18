@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { seedIfEmpty } from "./seed";
 import { ensureSecuritySchema } from "./db";
 import * as fs from "fs";
+import * as http from "http";
 import * as path from "path";
 
 const app = express();
@@ -33,7 +34,7 @@ function setupCors(app: express.Application) {
     }
 
     if (process.env.REPLIT_DOMAINS) {
-      process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
+      process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
         origins.add(`https://${d.trim()}`);
       });
     }
@@ -142,6 +143,96 @@ function serveExpoManifest(platform: "ios" | "android", res: Response) {
   res.send(manifest);
 }
 
+function getRequestBaseUrl(req: Request): string {
+  const forwardedProto = req.header("x-forwarded-proto");
+  const protocol = forwardedProto || req.protocol || "https";
+  const forwardedHost = req.header("x-forwarded-host");
+  const host = forwardedHost || req.get("host");
+  return `${protocol}://${host}`;
+}
+
+async function serveDevelopmentExpoManifest(req: Request, res: Response) {
+  try {
+    const manifestResponse = await fetch(
+      `http://127.0.0.1:8081${req.originalUrl}`,
+      {
+        headers: {
+          "expo-platform": req.header("expo-platform") || "",
+          accept: req.header("accept") || "*/*",
+        },
+      },
+    );
+    const manifest = await manifestResponse.text();
+    const baseUrl = getRequestBaseUrl(req);
+
+    res.status(manifestResponse.status);
+    res.setHeader(
+      "content-type",
+      manifestResponse.headers.get("content-type") || "text/plain",
+    );
+    res.setHeader(
+      "expo-protocol-version",
+      manifestResponse.headers.get("expo-protocol-version") || "0",
+    );
+    res.setHeader(
+      "expo-sfv-version",
+      manifestResponse.headers.get("expo-sfv-version") || "0",
+    );
+    res.send(
+      manifest
+        .replaceAll("http://127.0.0.1:8081", baseUrl)
+        .replaceAll("http://localhost:8081", baseUrl),
+    );
+  } catch (error) {
+    console.error("Unable to load the Expo development manifest:", error);
+    res.status(503).json({
+      error: "The Expo development server is not ready. Try again in a moment.",
+    });
+  }
+}
+
+function proxyMetroRequest(req: Request, res: Response, next: NextFunction) {
+  const publicBaseUrl = getRequestBaseUrl(req);
+  const publicHost = new URL(publicBaseUrl).host;
+  const publicProtocol = new URL(publicBaseUrl).protocol.replace(":", "");
+
+  const upstream = http.request(
+    {
+      hostname: "127.0.0.1",
+      port: 8081,
+      path: req.originalUrl,
+      method: req.method,
+      headers: {
+        ...req.headers,
+        // Metro uses the request host to generate its development URLs. Keep
+        // the public Replit host while connecting to the local Metro port.
+        host: publicHost,
+        "x-forwarded-host": publicHost,
+        "x-forwarded-proto": publicProtocol,
+      },
+    },
+    (upstreamResponse) => {
+      res.status(upstreamResponse.statusCode || 502);
+      Object.entries(upstreamResponse.headers).forEach(([name, value]) => {
+        if (value !== undefined) {
+          if (name.toLowerCase() === "content-location") {
+            res.setHeader(name, new URL(req.originalUrl, publicBaseUrl).toString());
+            return;
+          }
+          res.setHeader(name, value);
+        }
+      });
+      upstreamResponse.pipe(res);
+    },
+  );
+
+  upstream.on("error", (error) => {
+    console.error("Unable to proxy an Expo development request:", error);
+    next(error);
+  });
+  req.pipe(upstream);
+}
+
 function serveLandingPage({
   req,
   res,
@@ -153,12 +244,8 @@ function serveLandingPage({
   landingPageTemplate: string;
   appName: string;
 }) {
-  const forwardedProto = req.header("x-forwarded-proto");
-  const protocol = forwardedProto || req.protocol || "https";
-  const forwardedHost = req.header("x-forwarded-host");
-  const host = forwardedHost || req.get("host");
-  const baseUrl = `${protocol}://${host}`;
-  const expsUrl = `${host}`;
+  const baseUrl = getRequestBaseUrl(req);
+  const expsUrl = new URL(baseUrl).host;
 
   log(`baseUrl`, baseUrl);
   log(`expsUrl`, expsUrl);
@@ -184,9 +271,25 @@ function configureExpoAndLanding(app: express.Application) {
 
   const privacyPath = path.resolve(process.cwd(), "server", "templates", "privacy.html");
   const privacyHtml = fs.readFileSync(privacyPath, "utf-8");
+  const termsPath = path.resolve(process.cwd(), "server", "templates", "terms.html");
+  const termsHtml = fs.readFileSync(termsPath, "utf-8");
 
   const adminFeedbackPath = path.resolve(process.cwd(), "server", "templates", "admin-feedback.html");
   const adminFeedbackHtml = fs.readFileSync(adminFeedbackPath, "utf-8");
+  const adminContentPath = path.resolve(process.cwd(), "server", "templates", "admin-content.html");
+  const adminContentHtml = fs.readFileSync(adminContentPath, "utf-8");
+  const tiktokVerificationFilename = "tiktok-developers-site-verification=rZSfoQnIIMYPerJ4ufaEGwpNeCoGo1FP.txt";
+  const tiktokVerificationValue = "tiktok-developers-site-verification=rZSfoQnIIMYPerJ4ufaEGwpNeCoGo1FP";
+
+  app.get("/tiktokrZSfoQnIIMYPerJ4ufaEGwpNeCoGo1FP.txt", (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/plain");
+    res.status(200).end(tiktokVerificationValue);
+  });
+
+  app.get(`/${tiktokVerificationFilename}`, (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.status(200).send(tiktokVerificationValue);
+  });
 
   app.get("/robots.txt", (_req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/plain");
@@ -211,6 +314,12 @@ function configureExpoAndLanding(app: express.Application) {
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
+  <url>
+    <loc>https://diabeatsapp.com/terms</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
 </urlset>`;
     res.setHeader("Content-Type", "application/xml");
     res.status(200).send(xml);
@@ -221,9 +330,19 @@ function configureExpoAndLanding(app: express.Application) {
     res.status(200).send(privacyHtml);
   });
 
+  app.get("/terms", (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send(termsHtml);
+  });
+
   app.get("/admin/feedback", (_req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.status(200).send(adminFeedbackHtml);
+  });
+
+  app.get("/admin/content", (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send(adminContentHtml);
   });
 
   app.get("/qr", (_req: Request, res: Response) => {
@@ -245,10 +364,22 @@ function configureExpoAndLanding(app: express.Application) {
 
     const platform = req.header("expo-platform");
     if (platform && (platform === "ios" || platform === "android")) {
+      if (process.env.NODE_ENV === "development") {
+        return void serveDevelopmentExpoManifest(req, res);
+      }
       return serveExpoManifest(platform, res);
     }
 
     if (req.path === "/") {
+      // Replit's development preview should show the web app itself. Keep the
+      // marketing landing page at the production root.
+      if (
+        process.env.NODE_ENV === "development" &&
+        fs.existsSync(path.resolve(process.cwd(), "static-build", "index.html"))
+      ) {
+        return next();
+      }
+
       return serveLandingPage({
         req,
         res,
@@ -260,6 +391,19 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
+  if (process.env.NODE_ENV === "development") {
+    // Native Expo bundles resolve fonts and images through Metro's asset route,
+    // using /assets/?unstable_path=... . Keep those requests on Metro instead
+    // of treating them as public web assets.
+    app.use("/assets", (req: Request, res: Response, next: NextFunction) => {
+      if (typeof req.query.unstable_path === "string") {
+        return proxyMetroRequest(req, res, next);
+      }
+      next();
+    });
+    app.use("/node_modules", proxyMetroRequest);
+  }
+
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
 
   const staticBuildDir = path.resolve(process.cwd(), "static-build");
@@ -268,7 +412,12 @@ function configureExpoAndLanding(app: express.Application) {
   // Serve Expo static assets (_expo/, favicon.ico, etc.) at root level
   app.use(express.static(staticBuildDir));
 
-  // /app and /app/* all serve index.html — Expo Router handles in-app navigation
+  // The exported web bundle is built with /app as its base URL, so its assets
+  // must be available at that same mount point before the deep-link fallback.
+  app.use("/app", express.static(staticBuildDir));
+
+  // /app and unmatched /app/* paths serve index.html — Expo Router handles
+  // in-app navigation, including hard-loaded product detail links.
   app.get("/app", (req: Request, res: Response, next: NextFunction) => {
     if (fs.existsSync(staticBuildIndex)) {
       return res.sendFile(staticBuildIndex);

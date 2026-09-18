@@ -63,6 +63,8 @@ export const appSessions = pgTable("app_sessions", {
   revenueCatUserId: text("revenue_cat_user_id").notNull().unique(),
   usageKey: text("usage_key").notNull(),
   isPremium: boolean("is_premium").notNull().default(false),
+  subscriptionEventId: text("subscription_event_id"),
+  subscriptionEventAt: timestamp("subscription_event_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   expiresAt: timestamp("expires_at").notNull(),
 });
@@ -129,8 +131,9 @@ export const userFeedback = pgTable("user_feedback", {
 // ---------------------------------------------------------------------------
 
 /**
- * Cached normalized products from Open Food Facts. Keyed by barcode. Label
- * images are NEVER persisted — only the normalized JSON payload.
+ * Cached normalized products from approved providers. Keyed by barcode; the
+ * normalized payload retains provider identity so records cannot be confused.
+ * Label images are NEVER persisted — only the normalized JSON payload.
  */
 export const biotraceProducts = pgTable("biotrace_products", {
   barcode: text("barcode").primaryKey(),
@@ -204,6 +207,32 @@ export const biotraceCorrections = pgTable("biotrace_corrections", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Privacy-preserving aggregate of ingredient reference gaps. This table
+ * intentionally has no session, product, barcode, or source-text columns.
+ */
+export const biotraceUnclassifiedIngredients = pgTable("biotrace_unclassified_ingredients", {
+  ingredientKey: text("ingredient_key").primaryKey(),
+  canonicalId: text("canonical_id"),
+  ingredientName: text("ingredient_name").notNull(),
+  count: integer("count").notNull().default(0),
+});
+
+/** Owner-scoped plate analyses. Raw meal photos are never persisted. */
+export const mealPhotoAnalyses = pgTable(
+  "meal_photo_analyses",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => appSessions.id, { onDelete: "cascade" }),
+    mealName: text("meal_name").notNull(),
+    analysis: jsonb("analysis").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("meal_photo_analyses_session_id_idx").on(table.sessionId, table.id)],
+);
+
 export type Restaurant = typeof restaurants.$inferSelect;
 export type MenuItem = typeof menuItems.$inferSelect;
 export type Order = typeof orders.$inferSelect;
@@ -214,3 +243,5 @@ export type BioTraceProduct = typeof biotraceProducts.$inferSelect;
 export type BioTraceScan = typeof biotraceScans.$inferSelect;
 export type BioTraceSavedFood = typeof biotraceSavedFoods.$inferSelect;
 export type BioTraceCorrection = typeof biotraceCorrections.$inferSelect;
+export type BioTraceUnclassifiedIngredient = typeof biotraceUnclassifiedIngredients.$inferSelect;
+export type MealPhotoAnalysisRow = typeof mealPhotoAnalyses.$inferSelect;

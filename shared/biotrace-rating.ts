@@ -61,6 +61,21 @@ export const biotraceRatingSchema = z
 
 export type BioTraceRating = z.infer<typeof biotraceRatingSchema>;
 
+export const bioTraceProfileSchema = z
+  .object({
+    diabetesType: z.enum(["type1", "type2", "prediabetic", "gestational"]).nullable().optional(),
+    dietGoal: z.enum(["strict", "balanced", "weight-loss"]).optional(),
+    dailyCarbTarget: z.number().finite().positive().max(500).nullable().optional(),
+    usesInsulin: z.boolean().optional(),
+  })
+  .strict();
+
+export type BioTraceProfile = z.infer<typeof bioTraceProfileSchema>;
+
+export function getBioTraceProfileHeaders(profile: BioTraceProfile): Record<string, string> {
+  return { "X-BioTrace-Profile": JSON.stringify(profile) };
+}
+
 export const BIOTRACE_DISCLAIMER =
   "BioTrace ratings are an educational, rules-based summary of public label data—not medical advice or a safety guarantee. Verify the package label and consult your care plan for personal decisions.";
 
@@ -108,6 +123,177 @@ function factor(
   return { key, label, impact, value, basis };
 }
 
+const DIABETES_PROFILE_LABELS: Record<Exclude<NonNullable<BioTraceProfile["diabetesType"]>, null>, string> = {
+  type1: "Type 1",
+  type2: "Type 2",
+  prediabetic: "prediabetes",
+  gestational: "gestational diabetes",
+};
+
+/**
+ * Applies only transparent weighting changes to facts already present on the
+ * provider label. A profile never creates a missing value or changes the
+ * underlying product data.
+ */
+function applyProfileWeighting(
+  product: NormalizedProduct,
+  profile: BioTraceProfile | undefined,
+  canRatePerServing: boolean,
+  knownCore: number,
+  factors: RatingFactor[],
+): { adjustment: number; notes: string[] } {
+  const hasActiveProfile =
+    !!profile &&
+    (profile.diabetesType != null ||
+      (profile.dietGoal !== undefined && profile.dietGoal !== "balanced") ||
+      (profile.dailyCarbTarget !== null &&
+        profile.dailyCarbTarget !== undefined &&
+        profile.dailyCarbTarget < 45));
+  if (!profile || !hasActiveProfile) return { adjustment: 0, notes: [] };
+  if (knownCore < 2) {
+    factors.push(
+      factor(
+        "profile-unavailable",
+        "Your profile could not be applied without enough per-serving label data",
+        "neutral",
+        null,
+        "n/a",
+      ),
+    );
+    return { adjustment: 0, notes: [] };
+  }
+
+  let adjustment = 0;
+  const notes: string[] = [];
+  const addAdjustment = (
+    key: string,
+    label: string,
+    delta: number,
+    value: number | null,
+    basis: RatingFactor["basis"],
+    note: string,
+  ) => {
+    if (delta === 0) return;
+    adjustment += delta;
+    factors.push(factor(key, label, delta > 0 ? "positive" : "negative", value, basis));
+    notes.push(note);
+  };
+
+  const carbohydrates = perServingValue(product, product.nutrition.carbohydratesGrams);
+  const addedSugars = perServingValue(product, product.nutrition.addedSugarsGrams);
+  const saturatedFat = perServingValue(product, product.nutrition.saturatedFatGrams);
+  const calories = perServingValue(product, product.nutrition.energyKcal);
+
+  if (canRatePerServing && carbohydrates.value !== null) {
+    const diabetesType = profile.diabetesType;
+    const diabetesThreshold =
+      diabetesType === "prediabetic"
+        ? 15
+        : diabetesType === "type1"
+          ? 45
+          : 30;
+    if (diabetesType && carbohydrates.value > diabetesThreshold) {
+      addAdjustment(
+        "profile-diabetes-carbohydrates",
+        `${DIABETES_PROFILE_LABELS[diabetesType]} profile: extra emphasis on total carbohydrates (${carbohydrates.value}g)`,
+        -1,
+        carbohydrates.value,
+        carbohydrates.basis,
+        `Your ${DIABETES_PROFILE_LABELS[diabetesType]} profile puts extra emphasis on this carbohydrate amount.`,
+      );
+    }
+
+    if (profile.dietGoal === "strict" && carbohydrates.value > THRESHOLDS.carbohydratesGrams.good) {
+      addAdjustment(
+        "profile-strict-carbohydrates",
+        `Strict carb goal: extra emphasis on ${carbohydrates.value}g of carbohydrates`,
+        -1,
+        carbohydrates.value,
+        carbohydrates.basis,
+        "Your strict carb goal puts extra emphasis on this carbohydrate amount.",
+      );
+    }
+
+    if (
+      profile.dailyCarbTarget !== null &&
+      profile.dailyCarbTarget !== undefined &&
+      profile.dailyCarbTarget < 45 &&
+      carbohydrates.value > profile.dailyCarbTarget / 3
+    ) {
+      addAdjustment(
+        "profile-carb-target",
+        `Your ${profile.dailyCarbTarget}g daily carb target makes this serving more significant`,
+        -1,
+        carbohydrates.value,
+        carbohydrates.basis,
+        `Your ${profile.dailyCarbTarget}g daily carb target makes this serving more significant.`,
+      );
+    }
+  }
+
+  if (profile.dietGoal === "strict" && addedSugars.value !== null && addedSugars.value > 0) {
+    addAdjustment(
+      "profile-strict-added-sugars",
+      `Strict goal: extra emphasis on added sugars (${addedSugars.value}g)`,
+      -1,
+      addedSugars.value,
+      addedSugars.basis,
+      "Your strict goal puts extra emphasis on the added sugar amount.",
+    );
+  }
+
+  if (profile.dietGoal === "weight-loss") {
+    if (saturatedFat.value !== null && saturatedFat.value > THRESHOLDS.saturatedFatGrams.caution) {
+      addAdjustment(
+        "profile-weight-loss-saturated-fat",
+        `Weight-loss goal: extra emphasis on saturated fat (${saturatedFat.value}g)`,
+        -1,
+        saturatedFat.value,
+        saturatedFat.basis,
+        "Your weight-loss goal puts extra emphasis on this saturated-fat amount.",
+      );
+    }
+    if (calories.value !== null && calories.value > 400) {
+      addAdjustment(
+        "profile-weight-loss-calories",
+        `Weight-loss goal: extra emphasis on calories (${calories.value} kcal)`,
+        -1,
+        calories.value,
+        calories.basis,
+        "Your weight-loss goal puts extra emphasis on this calorie amount.",
+      );
+    } else if (
+      calories.value !== null &&
+      calories.value <= 200 &&
+      (saturatedFat.value === null || saturatedFat.value <= THRESHOLDS.saturatedFatGrams.good)
+    ) {
+      addAdjustment(
+        "profile-weight-loss-fit",
+        "Weight-loss goal: lower-calorie, lower-saturated-fat profile",
+        1,
+        calories.value,
+        calories.basis,
+        "Your weight-loss goal gives added weight to the lower-calorie, lower-saturated-fat profile.",
+      );
+    }
+  }
+
+  if (adjustment === 0) {
+    factors.push(
+      factor(
+        "profile-reviewed",
+        "Your saved profile did not add another caution for the available serving-based values",
+        "neutral",
+        null,
+        "n/a",
+      ),
+    );
+    notes.push("Your saved profile did not add another caution for the available serving-based values.");
+  }
+
+  return { adjustment, notes };
+}
+
 /**
  * Computes the deterministic BioTrace rating for a normalized product.
  *
@@ -116,7 +302,7 @@ function factor(
  * few core nutrition fields are present, the label is always
  * "insufficient-information" regardless of score.
  */
-export function computeBioTraceRating(product: NormalizedProduct): BioTraceRating {
+export function computeBioTraceRating(product: NormalizedProduct, profile?: BioTraceProfile): BioTraceRating {
   const { nutrition, ingredients } = product;
   const factors: RatingFactor[] = [];
   let score = 0;
@@ -183,7 +369,11 @@ export function computeBioTraceRating(product: NormalizedProduct): BioTraceRatin
   // Added sugars
   {
     const { value, basis } = perServingValue(product, nutrition.addedSugarsGrams);
-    if (value !== null) {
+    const ingredientEvidence = ingredients.hasSweeteners;
+    if (ingredientEvidence && (value === null || value <= THRESHOLDS.addedSugarsGrams.good)) {
+      score -= 1;
+      factors.push(factor("added-sugars", "Contains added sugars or sweeteners", "caution", null, "n/a"));
+    } else if (value !== null) {
       if (value <= THRESHOLDS.addedSugarsGrams.good) {
         score += 1;
         factors.push(factor("added-sugars", "No added sugars", "positive", value, basis));
@@ -194,6 +384,8 @@ export function computeBioTraceRating(product: NormalizedProduct): BioTraceRatin
         score -= 2;
         factors.push(factor("added-sugars", `High added sugars (${value}g)`, "negative", value, basis));
       }
+    } else {
+      factors.push(factor("added-sugars", "Added sugar amount unavailable", "neutral", null, "n/a"));
     }
   }
 
@@ -272,6 +464,9 @@ export function computeBioTraceRating(product: NormalizedProduct): BioTraceRatin
     }
   }
 
+  const profileWeighting = applyProfileWeighting(product, profile, canRatePerServing, knownCore, factors);
+  score += profileWeighting.adjustment;
+
   // ---- Determine label -----------------------------------------------------
   let label: RatingLabel;
   let summary: string;
@@ -294,6 +489,10 @@ export function computeBioTraceRating(product: NormalizedProduct): BioTraceRatin
   } else {
     label = "limit";
     summary = "Based on the label, consider limiting this product or choosing an alternative.";
+  }
+
+  if (profileWeighting.notes.length > 0 && label !== "insufficient-information") {
+    summary = `${summary} ${profileWeighting.notes.join(" ")}`.slice(0, 320);
   }
 
   return {

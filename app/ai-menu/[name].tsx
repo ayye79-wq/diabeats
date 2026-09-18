@@ -191,21 +191,21 @@ export default function AiMenuScreen() {
             <View style={styles.scoreRow}>
               <ScorePill
                 count={goodCount}
-                label="Better Choice"
+                label="Better choice"
                 bg={Colors.brand.goodLight}
                 color={Colors.brand.goodText}
                 icon="checkmark-circle"
               />
               <ScorePill
                 count={cautionCount}
-                label="Use Caution"
+                label="Moderate impact"
                 bg={Colors.brand.cautionLight}
                 color={Colors.brand.cautionText}
                 icon="warning"
               />
               <ScorePill
                 count={avoidCount}
-                label="Limit"
+                label="Higher impact"
                 bg={Colors.brand.avoidLight}
                 color={Colors.brand.avoidText}
                 icon="close-circle"

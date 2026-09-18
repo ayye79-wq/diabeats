@@ -1,0 +1,25 @@
+DiabEats is a mobile application designed to help people living with diabetes or blood-sugar concerns make safer, smarter restaurant and meal decisions when eating out. The core idea behind the app is that many restaurant customers want convenience, taste, and variety, but they also need quick guidance on which meals are less likely to spike blood sugar. DiabEats solves this by acting as a decision-support app that connects food discovery with health-conscious filtering.
+
+The app is intended to let a user search for nearby restaurants or meals, review menu items, and receive guidance about which options may be more appropriate for a diabetic-friendly lifestyle. Instead of forcing users to guess whether a dish is a good choice, the app is meant to present meals in a way that is easier to evaluate, compare, and understand. The purpose is not to replace a doctor or dietitian, but to give users practical, everyday help when choosing what to order.
+
+At a requirements level, the app is intended to do several things.
+
+First, it should allow users to discover restaurants based on location. A user can search by city, neighborhood, ZIP code, or current GPS position. This location-based behavior is important because the app is meant to support real-life decision making in the moment, especially when a user is already outside, traveling, or trying to find food nearby. The app should therefore be able to access or accept location input and return restaurants relevant to that area.
+
+Second, the app should display restaurant listings and meal options in a user-friendly way. For each restaurant, the user should be able to view a list of meals or menu items, along with helpful details such as the meal name, description, category, and other available nutritional or dietary information. The interface should reduce friction and help the user move quickly from “Where can I eat?” to “What is the better choice here?”
+
+Third, the app should provide diabetes-aware meal guidance. This is one of the main functional requirements. The app is intended to identify or highlight meals that are likely to be better for people monitoring sugar intake, carbohydrate load, portion size, or overall nutritional balance. This could include showing “better choice” recommendations, flagging meals that may be heavy in sugar or refined carbohydrates, or organizing meals into more helpful decision categories. The goal is to make the app feel like a smart assistant for diabetic-conscious dining.
+
+Fourth, the app should offer a meal details screen where the user can open one item and get a deeper explanation. This screen is intended to show more than just the meal title. It should present the logic behind the recommendation, such as why the item may be a better option, what nutritional concerns it may have, and what the user should be careful about. In the DiabEats concept, this detailed explanation is a major value point because users need context, not just labels.
+
+Fifth, the app is intended to support maps and navigation integration. Once a user finds a promising restaurant, the app should help them reach it easily. That means including map links, directions, or a way to open the restaurant location in a navigation tool. This requirement turns the app from a passive information viewer into a practical real-world utility.
+
+Sixth, the app should support a share-to-restaurant or communication feature. One of the useful ideas in the MVP was allowing users to share meal-related preferences or information with a restaurant. The thinking behind this feature is that some users may want to communicate dietary needs, ask questions, or confirm healthier preparation options before ordering. This adds convenience and supports real-world diabetic dining needs.
+
+Seventh, the app should provide a simple and fast mobile experience. Because it is meant for users who may be on the move, the design should prioritize quick search, readable results, easy filtering, and low friction navigation between screens. The app should not feel heavy or overly clinical. It should feel practical, supportive, and easy to use during everyday dining decisions.
+
+From a business and product perspective, DiabEats is intended to fill a gap between generic restaurant apps and strict medical nutrition tools. Many food apps help users find restaurants, but they do not specifically help diabetic users evaluate meals with blood sugar in mind. On the other hand, medical apps may track health data but do not help much with the immediate question: “What can I order here that is a better choice for me?” DiabEats sits in that middle space.
+
+In summary, the main idea behind DiabEats is this:
+
+DiabEats is a location-aware restaurant and meal recommendation app built to help people with diabetes make better eating choices when dining out by showing nearby options, identifying better meal choices, explaining why they are better, and helping users act on that information through maps, restaurant details, and practical decision support.

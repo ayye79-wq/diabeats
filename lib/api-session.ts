@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { fetch } from "expo/fetch";
+import { fetch as expoFetch } from "expo/fetch";
 
 const SESSION_KEY = "@diabeats_api_session_v1";
 const SESSION_RENEWAL_MARGIN_MS = 5 * 60 * 1000;
@@ -12,6 +12,11 @@ export interface ApiSession {
 }
 
 let pendingSession: Promise<ApiSession> | null = null;
+
+function sessionFetch(...args: Parameters<typeof globalThis.fetch>) {
+  const activeFetch = typeof window === "undefined" ? expoFetch : globalThis.fetch;
+  return activeFetch(...args);
+}
 
 function normalizedOrigin(baseUrl: string): string {
   return new URL(baseUrl).origin;
@@ -40,7 +45,7 @@ async function loadStoredSession(origin: string): Promise<ApiSession | null> {
 
 async function createSession(baseUrl: string): Promise<ApiSession> {
   const origin = normalizedOrigin(baseUrl);
-  const response = await fetch(new URL("/api/auth/session", baseUrl).toString(), { method: "POST" });
+  const response = await sessionFetch(new URL("/api/auth/session", baseUrl).toString(), { method: "POST" });
   if (!response.ok) {
     throw new Error("Could not establish a secure app session. Please try again.");
   }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generationPrompt, parseGeneratedDraft } from "./generator";
 import { APPROVED_FEATURES } from "./feature-manifest";
+import { CONTENT_ROTATION_PACKAGES } from "./rotation";
 
 function draftWithVisual(visual: string) {
   return JSON.stringify({
@@ -53,4 +54,14 @@ test("generation prompt exposes only the approved feature manifest", () => {
   for (const feature of APPROVED_FEATURES) assert.match(prompt, new RegExp(feature.id));
   assert.match(prompt, /Never claim portion sliders/);
   assert.match(prompt, /glucose prediction/);
+});
+
+test("generation prompt pins the selected rotation package and nutrition example", () => {
+  const rotationPackage = CONTENT_ROTATION_PACKAGES[0]!;
+  const prompt = generationPrompt([], rotationPackage);
+
+  assert.match(prompt, new RegExp(rotationPackage.id));
+  assert.match(prompt, new RegExp(rotationPackage.hook.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(prompt, new RegExp(rotationPackage.nutritionExample.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(prompt, /Do not substitute a different meal/);
 });

@@ -1,0 +1,147 @@
+That error is almost certainly coming from your RevenueCat
+ configuration, not from Apple subscription products themselves.
+
+The key line is:
+
+“Invalid API Key”
+
+That usually means one of these 5 things:
+
+Wrong RevenueCat public SDK key in the app
+iOS app using Android key by mistake
+Sandbox/TestFlight build pointing to deleted project/key
+Typo or extra spaces in the key
+RevenueCat initialization happening incorrectly
+
+For DiabEats, check these in order:
+
+1. Verify the iOS Public SDK Key
+
+In RevenueCat:
+
+Go to your project
+Settings
+API Keys
+Copy the Apple / iOS Public SDK Key
+
+It should look something like:
+
+appl_xxxxxxxxxxxxxxxxx
+
+NOT:
+
+secret key
+REST API key
+Google/Android key
+2. Check Your Expo / React Native Code
+
+Look for something like:
+
+Purchases.configure({
+  apiKey: "appl_xxxxx"
+});
+
+or
+
+await Purchases.configure({
+  apiKey: process.env.EXPO_PUBLIC_RC_IOS_KEY,
+});
+
+Make sure:
+
+it starts with appl_
+no missing characters
+no quotes issue
+no undefined env variable
+
+A very common issue:
+
+apiKey: process.env.REVENUECAT_KEY
+
+…but the env variable was never loaded into Expo.
+
+Then the app sends:
+
+undefined
+
+RevenueCat interprets it as invalid credentials.
+
+3. If Using Environment Variables (.env)
+
+Check your .env:
+
+EXPO_PUBLIC_RC_IOS_KEY=appl_xxxxxxxxx
+
+Then restart Expo completely:
+
+npx expo start -c
+
+If using EAS/TestFlight:
+
+rebuild the app after changing env vars
+TestFlight won’t update env vars without a new build
+4. Make Sure iOS Uses the iOS Key
+
+Sometimes people accidentally do:
+
+Platform.select({
+  ios: androidKey,
+  android: iosKey
+})
+
+Correct version:
+
+const apiKey = Platform.OS === "ios"
+  ? "appl_xxxxx"
+  : "goog_xxxxx";
+5. Confirm the Bundle ID Matches
+
+In RevenueCat:
+
+App bundle ID must exactly match:
+com.diabeats.app
+
+Mismatch can break offerings/purchases too.
+
+6. Check if the Key Was Rotated or Deleted
+
+If you:
+
+recreated apps
+deleted RevenueCat projects
+regenerated keys
+
+…the old TestFlight build may still contain an invalid key.
+
+In that case:
+
+paste new key
+rebuild
+upload new TestFlight build
+7. Add Debug Logs Immediately
+
+Temporarily add:
+
+Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+
+Then watch Xcode / Expo logs.
+
+You’ll probably see:
+
+invalid api key
+unauthorized
+offerings fetch failed
+
+which confirms it quickly.
+
+Most Likely Cause Here
+
+Because your popup appears instantly before Apple purchase flow starts, I strongly suspect:
+
+✅ Wrong RevenueCat public key
+OR
+✅ Environment variable not loading into TestFlight build
+
+—not App Store Connect products.
+
+That’s actually good news because it’s usually a fast fix.

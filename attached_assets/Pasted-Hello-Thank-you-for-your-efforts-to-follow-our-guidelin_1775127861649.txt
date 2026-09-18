@@ -1,0 +1,70 @@
+Hello,
+
+Thank you for your efforts to follow our guidelines. There are some outstanding issues that still need your attention.
+
+If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+Review Environment
+Submission ID: 1570cac3-3d8d-4689-8f21-37453bce68f9
+Review date: March 31, 2026
+Review Device: iPad Air 11-inch (M3)
+Version reviewed: 1.0
+
+Guideline 2.3.2 - Performance - Accurate Metadata
+
+Issue Description
+
+We noticed that your promotional image to be displayed on the App Store does not sufficiently represent the associated promoted In-App Purchase and/or win back offer. Specifically, we found the following issue with your promotional image:
+
+ – You submitted duplicate or identical promotional images for different promoted In-App Purchase products and/or win back offers. 
+
+
+Next Steps
+
+To resolve this issue, please revise your promotional image to ensure it is unique and accurately represents the associated promoted In-App Purchase and/or win back offer. 
+
+If you have no future plans on promoting this In-App Purchase product, you can delete the associated promotional image in App Store Connect. 
+
+Resources
+
+- Learn how to view and edit In-App Purchase information in App Store Connect.
+- Discover more best practices for promoting your In-App Purchases on the App Store.
+Guideline 3.1.2(c) - Business - Payments - Subscriptions
+Issue Description
+
+The submission did not include all the required information for apps offering auto-renewable subscriptions.
+
+The following information needs to be included within the app:
+
+
+
+You can use SubscriptionStoreView to easily include all of the required information in the app's purchase flow.
+
+The following information needs to be included in the App Store metadata:
+
+- A functional link to the Terms of Use (EULA). If you are using the standard Apple Terms of Use (EULA), include a link to the Terms of Use in the App Description. If you are using a custom EULA, add it in App Store Connect.
+
+Next Steps
+
+Update the app and App Store metadata to include the information specified above.
+
+Once the app and metadata includes all of the required information, or if they already do, reply to this message with a screen recording to confirm. Include this information in the Notes field of the App Review Information section in App Store Connect for future submissions.
+
+Resources
+
+Apps offering auto-renewable subscriptions must include all of the following required information in the app itself:
+
+- Title of auto-renewing subscription (this may be the same as the In-App Purchase product name)
+- Length of subscription
+- Price of subscription, and price per unit if appropriate
+- Functional links to the privacy policy and Terms of Use (EULA)
+
+The app metadata must also include functional links to the privacy policy in the Privacy Policy field in App Store Connect and the Terms of Use (EULA) in the App Description or EULA field in App Store Connect.
+
+Review Schedule 2 of the Apple Developer Program License Agreement to learn more.
+Support
+- Reply to this message in your preferred language if you need assistance. If you need additional support, use the Contact Us module.
+- Consult with fellow developers and Apple engineers on the Apple Developer Forums.
+- Request an App Review Appointment at Meet with Apple to discuss your app's review. Appointments subject to availability during your local business hours on Tuesdays and Thursdays.
+- Provide feedback on this message and your review experience by completing a short survey.
+

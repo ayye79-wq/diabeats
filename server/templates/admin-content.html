@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DiabEats Admin · Content Review</title>
+    <style>
+      * { box-sizing: border-box; }
+      :root {
+        --green: #166534;
+        --green-dark: #14532d;
+        --green-pale: #f0fdf4;
+        --ink: #172033;
+        --muted: #64748b;
+        --line: #dbe4dc;
+        --page: #f7faf8;
+        --card: #ffffff;
+        --danger: #b42318;
+        --danger-bg: #fff4f2;
+        --warning: #92400e;
+        --warning-bg: #fffbeb;
+      }
+      body { margin: 0; background: var(--page); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      button, input { font: inherit; }
+      .topbar { background: var(--green-dark); color: #fff; padding: 14px 20px; }
+      .topbar-inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      .brand { color: #fff; text-decoration: none; font-weight: 750; letter-spacing: -.02em; }
+      .brand span { opacity: .7; font-weight: 500; margin-left: 8px; }
+      .home-link { color: #dcfce7; font-size: 14px; text-decoration: none; }
+      .login-wrap { min-height: calc(100vh - 52px); display: grid; place-items: center; padding: 24px; }
+      .login-card { width: min(100%, 390px); background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 32px; box-shadow: 0 16px 40px rgba(20, 83, 45, .08); }
+      h1, h2, h3, p { margin-top: 0; }
+      .login-card h1 { font-size: 24px; margin-bottom: 8px; }
+      .muted { color: var(--muted); font-size: 14px; line-height: 1.55; }
+      .login-card input { width: 100%; margin-top: 18px; padding: 12px 14px; border: 1px solid #bfcfc2; border-radius: 10px; outline-color: var(--green); }
+      .login-card input.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      .primary { border: 0; background: var(--green); color: #fff; border-radius: 10px; padding: 11px 15px; cursor: pointer; font-weight: 700; }
+      .primary:disabled { opacity: .65; cursor: wait; }
+      .login-card .primary { width: 100%; margin-top: 12px; }
+      .login-error, .page-error { color: var(--danger); background: var(--danger-bg); border: 1px solid #fecdca; border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 14px; }
+      .dashboard { display: none; max-width: 1080px; margin: 0 auto; padding: 34px 20px 64px; }
+      .dashboard-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 18px; }
+       .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+      .eyebrow { color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+      .dashboard h1 { font-size: clamp(28px, 4vw, 38px); letter-spacing: -.04em; margin-bottom: 8px; }
+      .refresh { background: #fff; color: var(--green-dark); border: 1px solid #a8c8ae; white-space: nowrap; }
+      .notice { background: var(--green-pale); border: 1px solid #bbf7d0; border-radius: 14px; padding: 13px 15px; color: var(--green-dark); font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
+      .drafts { display: grid; gap: 20px; }
+      .draft-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+      .draft-head { padding: 20px 22px 0; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+      .draft-head h2 { font-size: 22px; letter-spacing: -.02em; margin-bottom: 5px; }
+      .meta { color: var(--muted); font-size: 13px; }
+      .badge { border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 750; text-transform: capitalize; background: var(--warning-bg); color: var(--warning); }
+      .badge.approved { background: var(--green-pale); color: var(--green-dark); }
+      .badge.rejected, .badge.published { background: #eff6ff; color: #1d4ed8; }
+      .draft-body { padding: 20px 22px 22px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr); gap: 24px; }
+      .copy-block + .copy-block { margin-top: 18px; }
+      .label { display: block; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+      .hook { font-size: 18px; line-height: 1.35; font-weight: 750; }
+      .voiceover, .caption { color: #475569; font-size: 14px; line-height: 1.58; white-space: pre-wrap; }
+      .claim-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; }
+      .claim-list li { color: #334155; font-size: 14px; line-height: 1.45; padding-left: 18px; position: relative; }
+      .claim-list li::before { content: "•"; color: var(--green); position: absolute; left: 3px; font-weight: 900; }
+      .disclaimer { background: var(--warning-bg); border: 1px solid #fde68a; color: #713f12; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.45; }
+      .video-panel { background: #0b1710; border-radius: 13px; min-height: 300px; display: grid; place-items: center; overflow: hidden; }
+      .video-panel video { width: 100%; max-height: 520px; display: block; background: #000; }
+      .video-fallback { color: #cbd5d1; font-size: 14px; text-align: center; padding: 30px; line-height: 1.5; }
+      .actions { border-top: 1px solid var(--line); padding: 15px 22px; display: flex; justify-content: space-between; align-items: center; gap: 14px; background: #fcfefd; }
+      .actions p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+      .approved-note { color: var(--green-dark) !important; font-weight: 700; }
+       .tiktok-control { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 220px; }
+       .tiktok-control strong { display: block; font-size: 13px; }
+       .tiktok-control span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+       .tiktok-control .primary { margin-top: 8px; padding: 8px 11px; font-size: 13px; width: 100%; }
+       .tiktok-upload-status { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+       .tiktok-upload-status.success { color: var(--green-dark); font-weight: 700; }
+       .tiktok-upload-status.failure { color: var(--danger); }
+      .empty { border: 1px dashed #b8c9bb; background: #fff; border-radius: 16px; padding: 48px 24px; text-align: center; color: var(--muted); }
+      .empty h2 { color: var(--ink); margin-bottom: 8px; }
+      @media (max-width: 700px) {
+        .dashboard { padding: 26px 14px 48px; }
+         .dashboard-header { flex-direction: column; }
+         .header-actions { width: 100%; justify-content: stretch; }
+         .tiktok-control { flex: 1; }
+        .draft-body { grid-template-columns: 1fr; }
+        .video-panel { min-height: 240px; max-width: 360px; width: 100%; }
+        .draft-head, .draft-body, .actions { padding-left: 16px; padding-right: 16px; }
+        .actions { align-items: flex-start; flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/">DiabEats <span>Admin</span></a>
+        <a class="home-link" href="/">View website ↗</a>
+      </div>
+    </header>
+
+    <main id="loginWrap" class="login-wrap">
+      <section class="login-card" aria-labelledby="loginTitle">
+        <h1 id="loginTitle">Content review</h1>
+        <p class="muted">Sign in to review generated DiabEats drafts. Approval only prepares content for a later, manual publishing step.</p>
+        <form id="loginForm">
+          <input class="visually-hidden" type="text" name="username" autocomplete="username" value="admin" tabindex="-1" aria-hidden="true" />
+          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Admin password" aria-label="Admin password" />
+          <button id="signInButton" class="primary" type="submit">Open drafts</button>
+          <div id="loginError" class="login-error" role="alert" hidden></div>
+        </form>
+      </section>
+    </main>
+
+    <main id="dashboard" class="dashboard">
+      <header class="dashboard-header">
+        <div>
+          <div class="eyebrow">DiabEats Content Agent</div>
+          <h1>Review generated drafts</h1>
+          <p class="muted">Inspect each video and its approved feature claims before marking it ready for the next manual step.</p>
+        </div>
+         <div class="header-actions">
+           <section id="tiktokControl" class="tiktok-control" aria-live="polite">
+             <strong>TikTok Sandbox</strong>
+             <span id="tiktokStatusText">Checking connection…</span>
+             <button id="tiktokConnectButton" class="primary" type="button">Connect TikTok</button>
+           </section>
+           <button id="refreshButton" class="primary refresh" type="button">Refresh drafts</button>
+         </div>
+      </header>
+      <div class="notice">Approving a draft does not upload or post it to TikTok. Public posting remains a separate, manual action.</div>
+      <div id="pageError" class="page-error" role="alert" hidden></div>
+      <section id="drafts" class="drafts" aria-live="polite"></section>
+    </main>
+
+    <script>
+      let token = "";
+      let videoUrls = [];
+       let tiktokStatus = { configured: false, connected: false };
+
+      const loginWrap = document.getElementById("loginWrap");
+      const dashboard = document.getElementById("dashboard");
+      const passwordInput = document.getElementById("passwordInput");
+      const signInButton = document.getElementById("signInButton");
+      const loginError = document.getElementById("loginError");
+      const pageError = document.getElementById("pageError");
+      const draftsElement = document.getElementById("drafts");
+       const tiktokStatusText = document.getElementById("tiktokStatusText");
+       const tiktokConnectButton = document.getElementById("tiktokConnectButton");
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+      }
+
+      function statusClass(status) {
+        return ["draft", "approved", "rejected", "published"].includes(status) ? status : "draft";
+      }
+
+      function formattedDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString();
+      }
+
+      function setLoginError(message) {
+        loginError.textContent = message;
+        loginError.hidden = !message;
+      }
+
+      function setPageError(message) {
+        pageError.textContent = message;
+        pageError.hidden = !message;
+      }
+
+      async function request(url, options = {}) {
+        const headers = { Authorization: `Bearer ${token}`, ...(options.headers || {}) };
+        return fetch(url, { ...options, headers });
+      }
+
+       function renderTikTokStatus(status) {
+         tiktokStatus = status && typeof status === "object" ? status : { configured: false, connected: false };
+         if (!tiktokStatus.configured) {
+           tiktokStatusText.textContent = "Sandbox credentials have not been configured.";
+           tiktokConnectButton.disabled = true;
+           tiktokConnectButton.textContent = "Connect TikTok";
+           return;
+         }
+         if (tiktokStatus.connected) {
+           tiktokStatusText.textContent = "Connected for Inbox uploads only.";
+           tiktokConnectButton.disabled = false;
+           tiktokConnectButton.textContent = "Reconnect TikTok";
+           return;
+         }
+         tiktokStatusText.textContent = "Connect to enable approved Inbox uploads.";
+         tiktokConnectButton.disabled = false;
+         tiktokConnectButton.textContent = "Connect TikTok";
+       }
+
+      async function loadVideo(draft) {
+        if (!draft.hasVideo) return;
+        const slot = document.querySelector(`[data-video-slot="${CSS.escape(draft.id)}"]`);
+        if (!slot) return;
+        try {
+          const response = await request(`/api/admin/content-drafts/${encodeURIComponent(draft.id)}/video`);
+          if (!response.ok) throw new Error("Video unavailable");
+          const url = URL.createObjectURL(await response.blob());
+          videoUrls.push(url);
+          const video = document.createElement("video");
+          video.controls = true;
+          video.playsInline = true;
+          video.preload = "metadata";
+          video.src = url;
+          video.setAttribute("aria-label", `Video preview for ${draft.topic}`);
+          slot.replaceChildren(video);
+        } catch {
+          slot.innerHTML = '<div class="video-fallback">The video preview could not be loaded. Refresh and try again.</div>';
+        }
+      }
+
+      function renderDraft(draft) {
+        const claims = draft.featureClaims.map((item) => `<li>${escapeHtml(item.claim)}</li>`).join("");
+        const hashtags = draft.hashtags.map(escapeHtml).join(" ");
+         let action = "";
+         if (draft.status === "draft") {
+           action = `<button class="primary approve-button" type="button" data-approve="${escapeHtml(draft.id)}">Approve draft</button>`;
+         } else if (draft.status === "approved") {
+           const upload = draft.tiktokUpload || null;
+           if (upload?.status === "succeeded") {
+             action = `<p class="tiktok-upload-status success">✓ Uploaded to TikTok Inbox${upload.publishId ? ` · Publish ID: ${escapeHtml(upload.publishId)}` : ""}</p>`;
+           } else if (upload?.status === "uploading") {
+             if (upload.phase === "reserved") {
+               action = `<div><button class="primary" type="button" disabled>Preparing TikTok Inbox upload…</button><p class="tiktok-upload-status">If this remains here for two minutes, refresh to enable the safe retry option.</p><button class="secondary resolve-tiktok-button" type="button" data-resolve-tiktok="${escapeHtml(draft.id)}" data-resolve-action="retry_reserved">Retry interrupted preparation</button></div>`;
+             } else {
+               action = `<div><button class="primary" type="button" disabled>TikTok upload may be in progress…</button><p class="tiktok-upload-status">Check TikTok Inbox first. After 15 minutes, you can confirm it is not there before enabling a retry.</p><button class="secondary resolve-tiktok-button" type="button" data-resolve-tiktok="${escapeHtml(draft.id)}" data-resolve-action="confirm_not_in_inbox">Confirm not in Inbox &amp; enable retry</button></div>`;
+             }
+           } else {
+             const disabled = !tiktokStatus.connected;
+             const retry = upload?.status === "failed";
+             action = `
+               <div>
+                 <button class="primary upload-tiktok-button" type="button" data-upload-tiktok="${escapeHtml(draft.id)}" ${disabled ? "disabled" : ""}>${retry ? "Retry TikTok Inbox upload" : "Upload to TikTok Inbox"}</button>
+                 ${disabled ? '<p class="tiktok-upload-status">Connect TikTok before uploading.</p>' : ""}
+                 ${upload?.status === "failed" ? `<p class="tiktok-upload-status failure">${escapeHtml(upload.error || "The previous upload failed. Try again.")}</p>` : ""}
+               </div>`;
+           }
+         } else {
+           action = `<p class="approved-note">Status: ${escapeHtml(draft.status)}</p>`;
+         }
+        const video = draft.hasVideo
+          ? `<div class="video-panel" data-video-slot="${escapeHtml(draft.id)}"><div class="video-fallback">Loading secure preview…</div></div>`
+          : '<div class="video-panel"><div class="video-fallback">No rendered video preview is available for this draft.</div></div>';
+
+        return `
+          <article class="draft-card">
+            <header class="draft-head">
+              <div>
+                <h2>${escapeHtml(draft.topic)}</h2>
+                <div class="meta">Generated ${escapeHtml(formattedDate(draft.createdAt))}</div>
+              </div>
+              <span class="badge ${statusClass(draft.status)}">${escapeHtml(draft.status)}</span>
+            </header>
+            <div class="draft-body">
+              <div>
+                <div class="copy-block">
+                  <span class="label">Opening hook</span>
+                  <div class="hook">${escapeHtml(draft.hook)}</div>
+                </div>
+                <div class="copy-block">
+                  <span class="label">Voiceover</span>
+                  <div class="voiceover">${escapeHtml(draft.voiceover)}</div>
+                </div>
+                <div class="copy-block">
+                  <span class="label">Approved feature claims</span>
+                  <ul class="claim-list">${claims || "<li>No feature claims available</li>"}</ul>
+                </div>
+                <div class="copy-block">
+                  <span class="label">Caption</span>
+                  <div class="caption">${escapeHtml(draft.caption)}<br><br>${hashtags}</div>
+                </div>
+                <div class="copy-block disclaimer">${escapeHtml(draft.disclaimer)}</div>
+              </div>
+              ${video}
+            </div>
+            <footer class="actions">
+               <p>${draft.status === "approved" ? "Approved drafts may be uploaded privately to TikTok Inbox. This does not publish a public post." : "Approval confirms the draft is ready for a separate, manual publishing workflow."}</p>
+              ${action}
+            </footer>
+          </article>`;
+      }
+
+      async function loadDrafts() {
+        setPageError("");
+        videoUrls.forEach((url) => URL.revokeObjectURL(url));
+        videoUrls = [];
+        draftsElement.innerHTML = '<div class="empty"><h2>Loading drafts…</h2></div>';
+        try {
+           const [response, statusResponse] = await Promise.all([
+             request("/api/admin/content-drafts"),
+             request("/api/admin/tiktok/status"),
+           ]);
+          if (response.status === 401) {
+            token = "";
+            dashboard.style.display = "none";
+            loginWrap.style.display = "grid";
+            setLoginError("Incorrect admin password.");
+            return false;
+          }
+          if (!response.ok) throw new Error("Could not load content drafts.");
+          const payload = await response.json();
+           if (statusResponse.status === 401) {
+             token = "";
+             dashboard.style.display = "none";
+             loginWrap.style.display = "grid";
+             setLoginError("Incorrect admin password.");
+             return false;
+           }
+           renderTikTokStatus(statusResponse.ok ? await statusResponse.json() : { configured: false, connected: false });
+          const drafts = Array.isArray(payload.drafts) ? payload.drafts : [];
+          draftsElement.innerHTML = drafts.length
+            ? drafts.map(renderDraft).join("")
+            : '<div class="empty"><h2>No generated drafts yet</h2><p>When the Content Agent creates a draft, it will appear here for review.</p></div>';
+          drafts.forEach(loadVideo);
+          document.querySelectorAll("[data-approve]").forEach((button) => {
+            button.addEventListener("click", () => approveDraft(button.dataset.approve, button));
+          });
+           document.querySelectorAll("[data-upload-tiktok]").forEach((button) => {
+             button.addEventListener("click", () => uploadToTikTok(button.dataset.uploadTiktok, button));
+           });
+           document.querySelectorAll("[data-resolve-tiktok]").forEach((button) => {
+             button.addEventListener("click", () => resolveTikTokUpload(button.dataset.resolveTiktok, button.dataset.resolveAction, button));
+           });
+          return true;
+        } catch (error) {
+          draftsElement.innerHTML = "";
+          setPageError(error instanceof Error ? error.message : "Could not load content drafts.");
+          return false;
+        }
+      }
+
+      async function approveDraft(id, button) {
+        if (!id || !window.confirm("Approve this draft? This does not upload or publish it to TikTok.")) return;
+        button.disabled = true;
+        button.textContent = "Approving…";
+        setPageError("");
+        try {
+          const response = await request(`/api/admin/content-drafts/${encodeURIComponent(id)}/approve`, { method: "POST" });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || "Could not approve this draft.");
+          await loadDrafts();
+        } catch (error) {
+          setPageError(error instanceof Error ? error.message : "Could not approve this draft.");
+          button.disabled = false;
+          button.textContent = "Approve draft";
+        }
+       }
+
+       async function connectTikTok() {
+         setPageError("");
+         tiktokConnectButton.disabled = true;
+         tiktokConnectButton.textContent = "Opening TikTok…";
+         try {
+           const response = await request("/api/admin/tiktok/connect", { method: "POST" });
+           const payload = await response.json().catch(() => ({}));
+           if (!response.ok || !payload.authorizationUrl) throw new Error(payload.error || "Could not start TikTok authorization.");
+           window.location.assign(payload.authorizationUrl);
+         } catch (error) {
+           setPageError(error instanceof Error ? error.message : "Could not start TikTok authorization.");
+           renderTikTokStatus(tiktokStatus);
+         }
+       }
+
+       async function uploadToTikTok(id, button) {
+         if (!id || !window.confirm("Upload this approved video to TikTok Inbox? It will not publish a public post.")) return;
+         button.disabled = true;
+         button.textContent = "Uploading to TikTok Inbox…";
+         setPageError("");
+         try {
+           const response = await request(`/api/admin/content-drafts/${encodeURIComponent(id)}/upload-tiktok`, { method: "POST" });
+           const payload = await response.json().catch(() => ({}));
+           if (!response.ok) throw new Error(payload.error || "Could not upload this draft to TikTok Inbox.");
+           await loadDrafts();
+         } catch (error) {
+           setPageError(error instanceof Error ? error.message : "Could not upload this draft to TikTok Inbox.");
+           button.disabled = false;
+           button.textContent = "Upload to TikTok Inbox";
+          }
+       }
+
+       async function resolveTikTokUpload(id, action, button) {
+         if (!id || !action) return;
+         const prompt = action === "confirm_not_in_inbox"
+           ? "Confirm that you checked TikTok Inbox and this video is not there. This will enable a retry."
+           : "Confirm that the preparation was interrupted. This will enable a retry.";
+         if (!window.confirm(prompt)) return;
+         button.disabled = true;
+         setPageError("");
+         try {
+           const response = await request(`/api/admin/content-drafts/${encodeURIComponent(id)}/resolve-tiktok-upload`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ action }),
+           });
+           const payload = await response.json().catch(() => ({}));
+           if (!response.ok) throw new Error(payload.error || "Could not resolve this TikTok upload.");
+           await loadDrafts();
+         } catch (error) {
+           setPageError(error instanceof Error ? error.message : "Could not resolve this TikTok upload.");
+           button.disabled = false;
+         }
+       }
+
+      async function signIn() {
+        const password = passwordInput.value.trim();
+        if (!password) {
+          setLoginError("Enter the admin password to continue.");
+          return;
+        }
+        signInButton.disabled = true;
+        signInButton.textContent = "Opening…";
+        setLoginError("");
+        token = password;
+        const loaded = await loadDrafts();
+        if (loaded) {
+          passwordInput.value = "";
+          loginWrap.style.display = "none";
+          dashboard.style.display = "block";
+        }
+        signInButton.disabled = false;
+        signInButton.textContent = "Open drafts";
+      }
+
+      document.getElementById("loginForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        signIn();
+      });
+      document.getElementById("refreshButton").addEventListener("click", loadDrafts);
+       tiktokConnectButton.addEventListener("click", connectTikTok);
+    </script>
+  </body>
+</html>

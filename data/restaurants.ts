@@ -1,44 +1,703 @@
 export type DiabeticScore = "good" | "caution" | "avoid";
 
-export interface OrderStep {
-  label: string;
-  choice: string;
-  skip?: boolean;
-}
+  export interface Nutrient {
+    label: string;
+    value: string;
+  }
 
-export interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  price: string;
-  diabeticScore: DiabeticScore;
-  carbRange: string;
-  nutrients: { label: string; value: string }[];
-  quickTip: string;
-  glycemicLoad?: "low" | "medium" | "high";
-  orderSteps?: OrderStep[];
-}
+  export interface OrderStep {
+    label: string;
+    choice: string;
+    skip?: boolean;
+  }
 
-export interface Restaurant {
-  id: string;
-  name: string;
-  dietitianReviewed?: boolean;
-  orderUrl?: string;
-  cuisine: string;
-  address: string;
-  distance: string;
-  rating: number;
-  reviewCount: number;
-  priceLevel: string;
-  phone: string;
-  lat: number;
-  lng: number;
-  tags: string[];
-  menuItems: MenuItem[];
-}
+  export interface MenuItem {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    price: string;
+    diabeticScore: DiabeticScore;
+    carbRange: string;
+    nutrients: Nutrient[];
+    quickTip: string;
+    glycemicLoad?: "low" | "medium" | "high";
+    orderSteps?: OrderStep[];
+  }
 
-export const RESTAURANTS: Restaurant[] = [
+  export interface Restaurant {
+    id: string;
+    name: string;
+    orderUrl?: string;
+    cuisine: string;
+    address: string;
+    distance: string;
+    rating: number;
+    reviewCount: number;
+    priceLevel: string;
+    phone: string;
+    lat: number;
+    lng: number;
+    tags: string[];
+    menuItems: MenuItem[];
+    dietitianReviewed?: boolean;
+  }
+
+  export const RESTAURANTS: Restaurant[] = [
+    {
+      id: "r1",
+      name: "The Green Fork",
+    dietitianReviewed: true,
+      cuisine: "Mediterranean",
+      address: "142 Olive St, Brooklyn, NY",
+      distance: "0.3 mi",
+      rating: 4.7,
+      reviewCount: 312,
+      priceLevel: "$$",
+      phone: "+1-718-555-0142",
+      lat: 40.6782,
+      lng: -73.9442,
+      tags: ["Low Carb Friendly", "Grilled Options", "Vegan Available"],
+      menuItems: [
+        {
+          id: "m1-1",
+          name: "Grilled Salmon Salad",
+          description: "Atlantic salmon over arugula, cherry tomatoes, cucumber, olives, and lemon-herb vinaigrette.",
+          category: "Salads",
+          price: "$18",
+          diabeticScore: "good",
+          carbRange: "8–12g net carbs",
+          nutrients: [
+            { label: "Calories", value: "380" },
+            { label: "Protein", value: "34g" },
+            { label: "Fat", value: "22g" },
+            { label: "Carbs", value: "12g" },
+            { label: "Fiber", value: "4g" },
+            { label: "Sugar", value: "3g" },
+          ],
+          quickTip: "Ask for dressing on the side and skip the croutons for even fewer carbs.",
+          orderSteps: [
+            { label: "Protein", choice: "Grilled Atlantic salmon" },
+            { label: "Base", choice: "Arugula (full portion)" },
+            { label: "Toppings", choice: "Cherry tomatoes, cucumber, olives" },
+            { label: "Dressing", choice: "Lemon-herb vinaigrette on the side" },
+            { label: "Skip", choice: "Croutons", skip: true },
+          ],
+        },
+        {
+          id: "m1-2",
+          name: "Chicken Souvlaki Plate",
+          description: "Marinated grilled chicken skewers with tzatziki, Greek salad, and a side of pita.",
+          category: "Mains",
+          price: "$22",
+          diabeticScore: "caution",
+          carbRange: "35–45g net carbs",
+          nutrients: [
+            { label: "Calories", value: "620" },
+            { label: "Protein", value: "42g" },
+            { label: "Fat", value: "18g" },
+            { label: "Carbs", value: "45g" },
+            { label: "Fiber", value: "3g" },
+            { label: "Sugar", value: "6g" },
+          ],
+          quickTip: "Request no pita and extra salad. The protein and fat will slow glucose absorption.",
+          orderSteps: [
+            { label: "Protein", choice: "Chicken souvlaki skewers (grilled)" },
+            { label: "Side", choice: "Greek salad (full portion)" },
+            { label: "Sauce", choice: "Tzatziki on the side" },
+            { label: "Skip", choice: "Pita bread", skip: true },
+          ],
+        },
+        {
+          id: "m1-3",
+          name: "Lamb Kofta Bowl",
+          description: "Spiced lamb meatballs over brown rice, roasted eggplant, peppers, and harissa yogurt.",
+          category: "Bowls",
+          price: "$24",
+          diabeticScore: "caution",
+          carbRange: "40–55g net carbs",
+          nutrients: [
+            { label: "Calories", value: "710" },
+            { label: "Protein", value: "38g" },
+            { label: "Fat", value: "24g" },
+            { label: "Carbs", value: "55g" },
+            { label: "Fiber", value: "8g" },
+            { label: "Sugar", value: "7g" },
+          ],
+          quickTip: "Swap brown rice for extra grilled vegetables to significantly cut carbs.",
+        },
+        {
+          id: "m1-4",
+          name: "Baklava",
+          description: "Layers of phyllo pastry with chopped walnuts, drenched in honey syrup.",
+          category: "Desserts",
+          price: "$8",
+          diabeticScore: "avoid",
+          carbRange: "40–50g net carbs per serving",
+          nutrients: [
+            { label: "Calories", value: "450" },
+            { label: "Protein", value: "5g" },
+            { label: "Fat", value: "22g" },
+            { label: "Carbs", value: "50g" },
+            { label: "Fiber", value: "1g" },
+            { label: "Sugar", value: "38g" },
+          ],
+          quickTip: "This dessert is very high in refined sugar and refined carbs. Consider skipping or sharing a single piece.",
+        },
+        {
+          id: "m1-5",
+          name: "Hummus & Veggies",
+          description: "House-made chickpea hummus with raw cucumber, bell pepper, celery, and radishes.",
+          category: "Starters",
+          price: "$11",
+          diabeticScore: "good",
+          carbRange: "18–24g net carbs",
+          nutrients: [
+            { label: "Calories", value: "220" },
+            { label: "Protein", value: "9g" },
+            { label: "Fat", value: "12g" },
+            { label: "Carbs", value: "24g" },
+            { label: "Fiber", value: "7g" },
+            { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "Chickpeas have a moderate glycemic index, and the high fiber and fat slow glucose absorption. Skip pita chips.",
+        },
+      ],
+    },
+    {
+      id: "r2",
+      name: "Sakura Bento",
+      cuisine: "Japanese",
+      address: "88 Cherry Blossom Ave, Manhattan, NY",
+      distance: "0.7 mi",
+      rating: 4.5,
+      reviewCount: 498,
+      priceLevel: "$$$",
+      phone: "+1-212-555-0088",
+      lat: 40.7580,
+      lng: -73.9855,
+      tags: ["Sashimi Available", "Low Sodium Options", "Gluten-Free Available"],
+      menuItems: [
+        {
+          id: "m2-1",
+          name: "Sashimi Platter (12 pcs)",
+          description: "Chef's selection of fresh sashimi — salmon, tuna, yellowtail, and halibut.",
+          category: "Sashimi",
+          price: "$28",
+          diabeticScore: "good",
+          carbRange: "0–2g net carbs",
+          nutrients: [
+            { label: "Calories", value: "310" },
+            { label: "Protein", value: "46g" },
+            { label: "Fat", value: "12g" },
+            { label: "Carbs", value: "2g" },
+            { label: "Fiber", value: "0g" },
+            { label: "Sugar", value: "0g" },
+          ],
+          quickTip: "Sashimi is one of the best diabetic-friendly options at any Japanese restaurant. Pure protein and healthy fats with near-zero carbs.",
+          orderSteps: [
+            { label: "Item", choice: "Sashimi Platter (not a sushi roll)" },
+            { label: "Fish", choice: "Chef's selection — salmon, tuna, yellowtail" },
+            { label: "Sauce", choice: "Low-sodium soy sauce (ask for it)" },
+            { label: "Skip", choice: "White rice or steamed rice on the side", skip: true },
+            { label: "Skip", choice: "Sushi rolls", skip: true },
+          ],
+        },
+        {
+          id: "m2-2",
+          name: "Salmon Avocado Roll (8 pcs)",
+          description: "Fresh salmon and creamy avocado wrapped in seasoned sushi rice and nori.",
+          category: "Rolls",
+          price: "$14",
+          diabeticScore: "caution",
+          carbRange: "28–36g net carbs",
+          nutrients: [
+            { label: "Calories", value: "380" },
+            { label: "Protein", value: "16g" },
+            { label: "Fat", value: "14g" },
+            { label: "Carbs", value: "36g" },
+            { label: "Fiber", value: "3g" },
+            { label: "Sugar", value: "6g" },
+          ],
+          quickTip: "Sushi rice is sticky and high GI. Limit to 1 roll and pair with miso soup. Request 'light rice' if possible.",
+        },
+        {
+          id: "m2-3",
+          name: "Dragon Roll (8 pcs)",
+          description: "Shrimp tempura and cucumber inside, topped with avocado and spicy mayo.",
+          category: "Rolls",
+          price: "$17",
+          diabeticScore: "avoid",
+          carbRange: "45–60g net carbs",
+          nutrients: [
+            { label: "Calories", value: "520" },
+            { label: "Protein", value: "18g" },
+            { label: "Fat", value: "22g" },
+            { label: "Carbs", value: "58g" },
+            { label: "Fiber", value: "2g" },
+            { label: "Sugar", value: "10g" },
+          ],
+          quickTip: "Tempura adds refined carbs and the spicy mayo is high in sugar. This roll can spike blood sugar quickly.",
+        },
+        {
+          id: "m2-4",
+          name: "Miso Soup",
+          description: "Warm dashi-based broth with silken tofu, wakame seaweed, and green onion.",
+          category: "Soups",
+          price: "$5",
+          diabeticScore: "good",
+          carbRange: "3–5g net carbs",
+          nutrients: [
+            { label: "Calories", value: "60" },
+            { label: "Protein", value: "4g" },
+            { label: "Fat", value: "2g" },
+            { label: "Carbs", value: "5g" },
+            { label: "Fiber", value: "1g" },
+            { label: "Sugar", value: "1g" },
+          ],
+          quickTip: "Excellent starter choice. Starting a meal with warm soup can slow eating pace and reduce overall glucose response.",
+        },
+        {
+          id: "m2-5",
+          name: "Teriyaki Chicken Bento",
+          description: "Grilled chicken breast with teriyaki glaze, white rice, edamame, and pickled ginger.",
+          category: "Bento Boxes",
+          price: "$21",
+          diabeticScore: "caution",
+          carbRange: "55–70g net carbs",
+          nutrients: [
+            { label: "Calories", value: "680" },
+            { label: "Protein", value: "44g" },
+            { label: "Fat", value: "12g" },
+            { label: "Carbs", value: "68g" },
+            { label: "Fiber", value: "4g" },
+            { label: "Sugar", value: "18g" },
+          ],
+          quickTip: "Teriyaki sauce is sugar-heavy. Ask for sauce on the side. Eating protein before the rice can reduce the glucose spike.",
+        },
+      ],
+    },
+    {
+      id: "r3",
+      name: "Casa Luz",
+      cuisine: "Mexican",
+      address: "305 Calle Sol, Queens, NY",
+      distance: "1.1 mi",
+      rating: 4.3,
+      reviewCount: 215,
+      priceLevel: "$$",
+      phone: "+1-718-555-0305",
+      lat: 40.7282,
+      lng: -73.7949,
+      tags: ["Flour-Free Options", "Lettuce Wraps", "Bean Bowls"],
+      menuItems: [
+        {
+          id: "m3-1",
+          name: "Carne Asada Bowl",
+          description: "Grilled skirt steak over cilantro-lime brown rice, black beans, pico de gallo, and sliced avocado.",
+          category: "Bowls",
+          price: "$17",
+          diabeticScore: "caution",
+          carbRange: "45–60g net carbs",
+          nutrients: [
+            { label: "Calories", value: "690" },
+            { label: "Protein", value: "46g" },
+            { label: "Fat", value: "20g" },
+            { label: "Carbs", value: "60g" },
+            { label: "Fiber", value: "12g" },
+            { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "Ask to replace rice with extra greens and double the black beans. Black beans have a low glycemic index and high fiber.",
+          orderSteps: [
+            { label: "Base", choice: "Extra greens (swap out rice)" },
+            { label: "Beans", choice: "Black beans (keep — low GI)" },
+            { label: "Protein", choice: "Carne asada (grilled skirt steak)" },
+            { label: "Toppings", choice: "Pico de gallo, sliced avocado" },
+            { label: "Skip", choice: "Brown rice or white rice", skip: true },
+            { label: "Skip", choice: "Sour cream, extra cheese", skip: true },
+          ],
+        },
+        {
+          id: "m3-2",
+          name: "Chicken Lettuce Tacos",
+          description: "Seasoned grilled chicken, salsa verde, cotija cheese, and radish in crisp romaine leaves instead of tortillas.",
+          category: "Tacos",
+          price: "$15",
+          diabeticScore: "good",
+          carbRange: "8–12g net carbs",
+          nutrients: [
+            { label: "Calories", value: "320" },
+            { label: "Protein", value: "38g" },
+            { label: "Fat", value: "14g" },
+            { label: "Carbs", value: "12g" },
+            { label: "Fiber", value: "3g" },
+            { label: "Sugar", value: "3g" },
+          ],
+          quickTip: "A standout choice. Lettuce wraps eliminate the biggest carb source in tacos while keeping all the flavor.",
+          orderSteps: [
+            { label: "Wrap", choice: "Romaine lettuce leaves (not tortilla)" },
+            { label: "Protein", choice: "Seasoned grilled chicken" },
+            { label: "Toppings", choice: "Salsa verde, cotija cheese, radish" },
+            { label: "Skip", choice: "Flour tortilla", skip: true },
+            { label: "Skip", choice: "Sour cream", skip: true },
+          ],
+        },
+        {
+          id: "m3-3",
+          name: "Churros con Chocolate",
+          description: "Fried dough pastry dusted with cinnamon sugar, served with a warm dark chocolate dipping sauce.",
+          category: "Desserts",
+          price: "$9",
+          diabeticScore: "avoid",
+          carbRange: "55–70g net carbs",
+          nutrients: [
+            { label: "Calories", value: "580" },
+            { label: "Protein", value: "5g" },
+            { label: "Fat", value: "28g" },
+            { label: "Carbs", value: "68g" },
+            { label: "Fiber", value: "1g" },
+            { label: "Sugar", value: "42g" },
+          ],
+          quickTip: "Very high in refined carbs, sugar, and saturated fat. This item will cause a sharp blood sugar spike.",
+        },
+        {
+          id: "m3-4",
+          name: "Guacamole & Jicama",
+          description: "Freshly mashed avocado with lime, cilantro, onion, and jalapeño. Served with jicama sticks instead of chips.",
+          category: "Starters",
+          price: "$10",
+          diabeticScore: "good",
+          carbRange: "10–14g net carbs",
+          nutrients: [
+            { label: "Calories", value: "210" },
+            { label: "Protein", value: "3g" },
+            { label: "Fat", value: "16g" },
+            { label: "Carbs", value: "14g" },
+            { label: "Fiber", value: "7g" },
+            { label: "Sugar", value: "3g" },
+          ],
+          quickTip: "Jicama is a low-GI root vegetable. Avocado's healthy fats help blunt post-meal glucose spikes.",
+        },
+        {
+          id: "m3-5",
+          name: "Cheese Quesadilla",
+          description: "Flour tortilla filled with melted Oaxacan cheese and roasted poblano peppers.",
+          category: "Mains",
+          price: "$13",
+          diabeticScore: "avoid",
+          carbRange: "42–52g net carbs",
+          nutrients: [
+            { label: "Calories", value: "540" },
+            { label: "Protein", value: "20g" },
+            { label: "Fat", value: "26g" },
+            { label: "Carbs", value: "52g" },
+            { label: "Fiber", value: "2g" },
+            { label: "Sugar", value: "2g" },
+          ],
+          quickTip: "White flour tortillas have a very high glycemic index. Consider a bowl option with the same fillings.",
+        },
+      ],
+    },
+    {
+      id: "r4",
+      name: "Ember & Oak",
+      cuisine: "American Grill",
+      address: "18 Fireside Lane, Hoboken, NJ",
+      distance: "1.5 mi",
+      rating: 4.6,
+      reviewCount: 587,
+      priceLevel: "$$$",
+      phone: "+1-201-555-0018",
+      lat: 40.7440,
+      lng: -74.0324,
+      tags: ["Steakhouse", "Low-Carb Friendly", "Grain-Free Options"],
+      menuItems: [
+        {
+          id: "m4-1",
+          name: "Ribeye Steak 12oz",
+          description: "Dry-aged USDA Choice ribeye, grilled to your specification with herb compound butter.",
+          category: "Steaks",
+          price: "$48",
+          diabeticScore: "good",
+          carbRange: "0–2g net carbs",
+          nutrients: [
+            { label: "Calories", value: "780" },
+            { label: "Protein", value: "62g" },
+            { label: "Fat", value: "58g" },
+            { label: "Carbs", value: "0g" },
+            { label: "Fiber", value: "0g" },
+            { label: "Sugar", value: "0g" },
+          ],
+          quickTip: "Zero carbs. A great anchor for your meal. Pair with non-starchy sides like asparagus or a side salad.",
+        },
+        {
+          id: "m4-2",
+          name: "Baked Potato",
+          description: "Oversized russet potato, fully loaded with sour cream, chives, butter, and shredded cheddar.",
+          category: "Sides",
+          price: "$9",
+          diabeticScore: "avoid",
+          carbRange: "55–70g net carbs",
+          nutrients: [
+            { label: "Calories", value: "490" },
+            { label: "Protein", value: "12g" },
+            { label: "Fat", value: "22g" },
+            { label: "Carbs", value: "68g" },
+            { label: "Fiber", value: "6g" },
+            { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "Baked potatoes have one of the highest glycemic index scores of any food. Swap for steamed broccoli or asparagus.",
+        },
+        {
+          id: "m4-3",
+          name: "Grilled Asparagus",
+          description: "Fresh asparagus spears charred over open flame with olive oil, garlic, lemon zest, and sea salt.",
+          category: "Sides",
+          price: "$10",
+          diabeticScore: "good",
+          carbRange: "4–6g net carbs",
+          nutrients: [
+            { label: "Calories", value: "90" },
+            { label: "Protein", value: "4g" },
+            { label: "Fat", value: "6g" },
+            { label: "Carbs", value: "6g" },
+            { label: "Fiber", value: "3g" },
+            { label: "Sugar", value: "2g" },
+          ],
+          quickTip: "One of the best side dish choices. Asparagus is very low in carbs, contains prebiotic fiber, and may improve insulin sensitivity.",
+        },
+        {
+          id: "m4-4",
+          name: "Classic Burger",
+          description: "8oz beef patty on a brioche bun with lettuce, tomato, onion, pickles, and house aioli.",
+          category: "Burgers",
+          price: "$22",
+          diabeticScore: "caution",
+          carbRange: "42–50g net carbs",
+          nutrients: [
+            { label: "Calories", value: "820" },
+            { label: "Protein", value: "52g" },
+            { label: "Fat", value: "44g" },
+            { label: "Carbs", value: "50g" },
+            { label: "Fiber", value: "2g" },
+            { label: "Sugar", value: "8g" },
+          ],
+          quickTip: "Request a lettuce wrap instead of the brioche bun to drop carbs from 50g to under 5g. Most restaurants accommodate this.",
+          orderSteps: [
+            { label: "Bun", choice: "Lettuce wrap (not brioche bun)" },
+            { label: "Patty", choice: "8oz beef patty, cooked to preference" },
+            { label: "Toppings", choice: "Lettuce, tomato, onion, pickles" },
+            { label: "Sauce", choice: "House aioli on the side (light)" },
+            { label: "Skip", choice: "Brioche bun", skip: true },
+            { label: "Skip", choice: "French fries — swap for side salad", skip: true },
+          ],
+        },
+        {
+          id: "m4-5",
+          name: "Caesar Salad",
+          description: "Crisp romaine, shaved parmesan, house croutons, and classic Caesar dressing.",
+          category: "Salads",
+          price: "$16",
+          diabeticScore: "caution",
+          carbRange: "18–24g net carbs",
+          nutrients: [
+            { label: "Calories", value: "390" },
+            { label: "Protein", value: "12g" },
+            { label: "Fat", value: "28g" },
+            { label: "Carbs", value: "24g" },
+            { label: "Fiber", value: "4g" },
+            { label: "Sugar", value: "3g" },
+          ],
+          quickTip: "Skip the croutons to cut 12g of carbs. Caesar dressing is lower in sugar than many alternatives.",
+          orderSteps: [
+            { label: "Base", choice: "Crisp romaine (full portion)" },
+            { label: "Add-on", choice: "Grilled chicken (ask to add)" },
+            { label: "Toppings", choice: "Shaved parmesan" },
+            { label: "Dressing", choice: "Caesar dressing on the side" },
+            { label: "Skip", choice: "Croutons", skip: true },
+          ],
+        },
+      ],
+    },
+    {
+      id: "r5",
+      name: "Spice Route",
+      cuisine: "Indian",
+      address: "77 Tandoor Way, Jersey City, NJ",
+      distance: "2.0 mi",
+      rating: 4.4,
+      reviewCount: 329,
+      priceLevel: "$$",
+      phone: "+1-201-555-0077",
+      lat: 40.7178,
+      lng: -74.0431,
+      tags: ["Tandoor Grilled", "Lentil Options", "Cauliflower Rice Available"],
+      menuItems: [
+        {
+          id: "m5-1",
+          name: "Tandoori Chicken",
+          description: "Marinated bone-in chicken charred in a clay oven, served with mint chutney and onion salad.",
+          category: "Tandoor",
+          price: "$19",
+          diabeticScore: "good",
+          carbRange: "6–10g net carbs",
+          nutrients: [
+            { label: "Calories", value: "420" },
+            { label: "Protein", value: "52g" },
+            { label: "Fat", value: "18g" },
+            { label: "Carbs", value: "10g" },
+            { label: "Fiber", value: "1g" },
+            { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "A great choice. The yogurt marinade adds probiotics, and the high protein content will help stabilize blood sugar.",
+          orderSteps: [
+            { label: "Protein", choice: "Tandoori chicken (full order)" },
+            { label: "Side", choice: "Onion salad" },
+            { label: "Dip", choice: "Mint chutney (small amount on the side)" },
+            { label: "Skip", choice: "Naan bread", skip: true },
+            { label: "Skip", choice: "Basmati rice", skip: true },
+          ],
+        },
+        {
+          id: "m5-2",
+          name: "Dal Makhani",
+          description: "Slow-cooked black lentils and red kidney beans in a rich tomato-cream sauce.",
+          category: "Lentils",
+          price: "$15",
+          diabeticScore: "caution",
+          carbRange: "32–40g net carbs",
+          nutrients: [
+            { label: "Calories", value: "480" },
+            { label: "Protein", value: "18g" },
+            { label: "Fat", value: "22g" },
+            { label: "Carbs", value: "40g" },
+            { label: "Fiber", value: "10g" },
+            { label: "Sugar", value: "5g" },
+          ],
+          quickTip: "Lentils have a low GI due to high fiber and resistant starch. The cream adds fat which further slows glucose absorption. Moderate portion.",
+        },
+        {
+          id: "m5-3",
+          name: "Garlic Naan (2 pcs)",
+          description: "Leavened flatbread cooked in tandoor oven, brushed with garlic butter.",
+          category: "Breads",
+          price: "$6",
+          diabeticScore: "avoid",
+          carbRange: "50–60g net carbs",
+          nutrients: [
+            { label: "Calories", value: "380" },
+            { label: "Protein", value: "8g" },
+            { label: "Fat", value: "8g" },
+            { label: "Carbs", value: "58g" },
+            { label: "Fiber", value: "2g" },
+            { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "Naan is made from refined white flour — very high glycemic. Skip entirely or limit to half a piece.",
+        },
+        {
+          id: "m5-4",
+          name: "Saag Paneer",
+          description: "Creamy spiced spinach with fresh Indian cottage cheese.",
+          category: "Vegetarian",
+          price: "$17",
+          diabeticScore: "good",
+          carbRange: "12–16g net carbs",
+          nutrients: [
+            { label: "Calories", value: "360" },
+            { label: "Protein", value: "20g" },
+            { label: "Fat", value: "24g" },
+            { label: "Carbs", value: "16g" },
+            { label: "Fiber", value: "4g" },
+            { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "Spinach is one of the best leafy greens for blood sugar management. Paneer provides protein and fat to slow digestion.",
+        },
+        {
+          id: "m5-5",
+          name: "Mango Lassi",
+          description: "Chilled yogurt-based drink blended with fresh mango and a touch of cardamom.",
+          category: "Drinks",
+          price: "$7",
+          diabeticScore: "avoid",
+          carbRange: "40–50g net carbs",
+          nutrients: [
+            { label: "Calories", value: "310" },
+            { label: "Protein", value: "6g" },
+            { label: "Fat", value: "6g" },
+            { label: "Carbs", value: "48g" },
+            { label: "Fiber", value: "1g" },
+            { label: "Sugar", value: "44g" },
+          ],
+          quickTip: "Very high in natural and added sugars. Opt for plain lassi (salted) instead — it has a fraction of the sugar.",
+        },
+      ],
+    },
+    {
+      id: "r6",
+      name: "Chipotle Mexican Grill",
+    dietitianReviewed: true,
+      orderUrl: "https://order.chipotle.com",
+      cuisine: "Mexican Fast Casual",
+      address: "44110 Ashburn Shopping Plaza, Ashburn, VA",
+      distance: "0.4 mi",
+      rating: 4.2,
+      reviewCount: 1840,
+      priceLevel: "$",
+      phone: "+1-571-555-0601",
+      lat: 39.0468,
+      lng: -77.4921,
+      tags: ["Low Carb Friendly", "Protein Bowls", "Customizable"],
+      menuItems: [
+        {
+          id: "m6-1",
+          name: "Chicken Salad Bowl",
+          description: "Grilled chicken over romaine, fajita veggies, fresh salsa, guacamole, and sour cream. No rice or beans.",
+          category: "Bowls",
+          price: "$11",
+          diabeticScore: "good",
+          carbRange: "10–15g net carbs",
+          nutrients: [
+            { label: "Calories", value: "430" }, { label: "Protein", value: "38g" },
+            { label: "Fat", value: "26g" }, { label: "Carbs", value: "14g" },
+            { label: "Fiber", value: "6g" }, { label: "Sugar", value: "4g" },
+          ],
+          quickTip: "Skip rice and beans entirely. Add extra fajita veggies and guac for healthy fats. Avoid the vinaigrette dressing.",
+          orderSteps: [
+            { label: "Base", choice: "Bowl (not burrito)" },
+            { label: "Rice", choice: "No rice", skip: true },
+            { label: "Beans", choice: "No beans", skip: true },
+            { label: "Protein", choice: "Grilled chicken" },
+            { label: "Toppings", choice: "Fajita veggies, fresh tomato salsa, guacamole" },
+            { label: "Extras", choice: "Romaine lettuce (ask to add)" },
+            { label: "Skip", choice: "Sour cream, queso, vinaigrette", skip: true },
+          ],
+        },
+        {
+          id: "m6-2",
+          name: "Chicken Burrito Bowl",
+          description: "Grilled chicken with brown rice, black beans, cheese, salsa, and sour cream.",
+          category: "Bowls",
+          price: "$11",
+          diabeticScore: "caution",
+          carbRange: "60–75g net carbs",
+          nutrients: [
+            { label: "Calories", value: "720" }, { label: "Protein", value: "44g" },
+            { label: "Fat", value: "22g" }, { label: "Carbs", value: "72g" },
+            { label: "Fiber", value: "14g" }, { label: "Sugar", value: "5g" },
+          ],
+          quickTip: "Ask for half portions of rice and beans to cut carbs by ~30g. Swap white rice for brown rice for better fiber.",
+          orderSteps: [
+            { label: "Base", choice: "Bowl (not burrito)" },
+            { label: "Rice", choice: "Brown rice (half portion)" },
+            { label: "Beans", choice: "Black beans (half portion)" },
+            { label: "Protein", choice: "Grilled chicken" },
+            { label: "Toppings", choice: "Fajita veggies, tomato salsa, cheese" },
+            { label: "Skip", choice: "White rice", skip: true },
+            { label: "Skip", choice: "Extra sour cream, queso", skip: true },
+          ],
+        },
+      ],
+    },
     {
       id: "r7",
       name: "Sweetgreen",
@@ -1550,3 +2209,4 @@ export const RESTAURANTS: Restaurant[] = [
       ],
     },
   ];
+  

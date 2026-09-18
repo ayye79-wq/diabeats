@@ -1,0 +1,41 @@
+Hello,
+
+Thank you for your resubmission. Upon further review, we identified additional issues that need your attention. See below for more information.
+
+If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+Review Environment
+Submission ID: ccdd2479-f461-4aa0-b018-a5179a3a68fa
+Review date: April 02, 2026
+Review Device: iPad Air 11-inch (M3)
+Version reviewed: 1.0
+
+Guideline 4.3(a) - Design - Spam
+
+Issue Description
+
+This app duplicates the content and functionality of other apps on the App Store, which is considered a form of spam.
+
+Specifically, this app is available in the same locations as another identical app you submitted to the App Store.
+
+Apps that duplicate content or functionality create clutter, diminish the overall experience for the end user, and reduce the ability of developers to market their apps.
+
+Next Steps
+
+It would be appropriate to restrict the available storefronts for these apps and ensure none of the selected storefronts overlap. Restrict storefronts by selecting "None" on Country or Region Availability in App Store Connect and then select the desired countries or regions. Learn more about restricting storefronts in App Store Connect. 
+
+Resources
+
+Some factors that contribute to a spam rejection may include:
+
+- Submitting an app with the same source code or assets as other apps already submitted to the App Store
+- Creating and submitting multiple similar apps using a repackaged app template 
+- Purchasing an app template with problematic code from a third party 
+- Submitting several similar apps across multiple accounts
+
+Learn more about our requirements to prevent spam in guideline 4.3.
+Support
+- Reply to this message in your preferred language if you need assistance. If you need additional support, use the Contact Us module.
+- Consult with fellow developers and Apple engineers on the Apple Developer Forums.
+- Request an App Review Appointment at Meet with Apple to discuss your app's review. Appointments subject to availability during your local business hours on Tuesdays and Thursdays.
+- Provide feedback on this message and your review experience by completing a short survey.

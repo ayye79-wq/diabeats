@@ -1,0 +1,44 @@
+The remix created a brand new App Store Connect app instead of connecting to my existing one. I need builds from this project to go to my existing app with Apple ID 6760898764 (shown in TestFlight as "DiabEats 115569"). The new app the remix created (095c1b) is not the right one and I cannot use it. Please update the original Diab-Eats project's Expo Launch to submit to Apple ID 6760898764
+
+
+On Tue, Apr 7, 2026 at 3:40 PM Fred (Support) <support@replit.com> wrote:
+Hi Kalid,
+ 
+Thank you for reaching out to us here at Replit Support. I understand your Expo Launch is pointed to a stale Apple ID. Currently the best way to approach this issue is to Remix your app and publish the remixed version. Your remixed app will start with a fresh state and a new provisioned Expo Go account. This should put you in a good position to input your Apply credentials and push to the app store. 
+ 
+Remixing an app essentially makes a fresh copy of it, and there is an option to copy the development database from the original to teh remix as well (I recommend enabling this). To remix your app, you can click the App Title at the top of the Agent conversation pane:
+ 
+
+ 
+ 
+Regards,
+Replit Support
+
+This email is a service from Replit. Delivered by Zendesk
+
+On April 7, 2026 at 2:54:43 PM UTC, Kalid Kayo ayye79@gmail.com wrote:
+Thanks for connecting me with someone who can help.
+
+Kalid
+
+
+On Tue, Apr 7, 2026 at 8:29 AM Quinn (Support) <support@replit.com> wrote:
+Hi Kalid, thank you for contacting Replit Support.
+
+I'm connecting you with a teammate who can update your Expo Launch configuration to use the correct App Store Connect App ID (6760898764). They'll be able to make the backend changes needed to resolve this.
+
+Thank you for reaching out. Our team is currently experiencing higher-than-usual demand, so responses may take a little longer. Rest assured, a teammate will follow up with you as soon as possible.
+
+Regards,
+
+Quinn
+
+
+This email is a service from Replit. Delivered by Zendesk
+
+On April 7, 2026 at 12:10:12 PM UTC, Kalid Kayo ayye79@gmail.com wrote:
+Subject: Expo Launch submitting to wrong/deleted App Store Connect App
+
+My Expo Launch is failing because it's hardcoded to App Store Connect App ID 6768828525, which I've since deleted. My correct surviving app has Apple ID 6760898764. The eas.json already has the correct ID but Expo Launch ignores it.
+
+Please update my Expo Launch configuration to submit to Apple ID 6760898764.

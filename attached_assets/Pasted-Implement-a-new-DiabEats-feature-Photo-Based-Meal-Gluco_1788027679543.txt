@@ -1,0 +1,252 @@
+Implement a new DiabEats feature: Photo-Based Meal Glucose Impact Estimate.
+
+GOAL
+Allow a user to photograph a plate of food and receive an estimated nutritional breakdown and likely glucose impact.
+
+IMPORTANT:
+Do NOT claim to predict the user's actual blood glucose or give an estimated mg/dL reading. This feature estimates the nutritional/glucose impact of the FOOD only.
+
+Before coding:
+1. Audit the existing DiabEats/BioTrace photo-analysis architecture.
+2. Reuse existing camera/photo-picker, AI vision, nutrition lookup, BioTrace resolver, scoring, database, and UI components wherever possible.
+3. Do not duplicate functionality that already exists.
+4. Do not change existing BioTrace scoring behavior unless required for this feature.
+5. Preserve all existing barcode, QR, label-photo, menu-analysis, history, saved-food, subscription, and camera functionality.
+6. Do not introduce READ_MEDIA_IMAGES, READ_MEDIA_VIDEO, or broad storage permissions. Continue using the Android system photo picker and existing camera permission strategy.
+
+FEATURE FLOW
+
+Add a clear entry point such as:
+
+"Analyze My Plate"
+
+User can:
+- Take a photo
+- Select a photo using the existing system photo picker
+
+After receiving the image:
+
+STEP 1 — FOOD IDENTIFICATION
+
+Use the existing vision/AI infrastructure to identify individual foods on the plate.
+
+For example, a plate might contain:
+- seasoned rice
+- grilled chicken
+- falafel
+- lettuce
+- tomato
+- cucumber
+
+Return confidence for each detected item.
+
+Do not invent foods when confidence is poor. Allow "Unknown item" where appropriate.
+
+STEP 2 — PORTION ESTIMATION
+
+Estimate approximate portion sizes from the image.
+
+Examples:
+Rice: ~1.5 cups
+Chicken: ~6 oz
+Falafel: 3 pieces
+Salad: ~1 cup
+
+Image-based portion estimation is inherently uncertain, so make these estimates editable.
+
+Add:
+
+"Adjust portions"
+
+The user must be able to change the estimated quantity/unit for each detected food and recalculate the result.
+
+STEP 3 — NUTRITION RESOLUTION
+
+Resolve identified foods through the existing DiabEats nutrition/provider architecture.
+
+Prefer reliable nutrition data already available in the project, including the current USDA/Open Food Facts resolver strategy where appropriate.
+
+Estimate for the entire meal:
+
+- Total carbohydrates
+- Total sugars
+- Fiber
+- Protein
+- Fat
+- Calories
+
+Where useful, calculate net carbohydrates:
+
+net carbs = total carbohydrates - fiber
+
+Do not confuse total carbohydrates with sugar.
+
+STEP 4 — GLUCOSE IMPACT
+
+Create an estimated meal glucose-impact classification:
+
+LOW
+MODERATE
+HIGH
+
+Base this primarily on estimated carbohydrate quantity and quality, while considering factors already supported by reliable data such as:
+- fiber
+- protein
+- fat
+- portion size
+- known food characteristics
+
+Do NOT fabricate glycemic index or glycemic load values when reliable data is unavailable.
+
+If there is insufficient evidence, say so rather than inventing a precise score.
+
+The result should explain which foods are likely the largest carbohydrate/glucose drivers.
+
+Example:
+
+Estimated Glucose Impact
+HIGH
+
+Estimated carbs: 72 g
+Estimated sugars: 9 g
+Fiber: 11 g
+Protein: 42 g
+
+Main glucose driver:
+Rice
+
+Why:
+The rice represents most of the estimated carbohydrate load. The protein and vegetables may moderate the overall meal response, but the carbohydrate portion remains relatively large.
+
+STEP 5 — SMART SWAPS
+
+Provide practical meal modifications based on the foods actually detected.
+
+Example:
+
+"Reduce rice from approximately 1.5 cups to ¾ cup."
+
+Then show the recalculated estimate:
+
+Current:
+72 g carbs — HIGH
+
+Suggested:
+43 g carbs — MODERATE
+
+Do not give medication or insulin-dosing advice.
+
+STEP 6 — UNCERTAINTY / SAFETY
+
+Clearly display:
+
+"Estimate only"
+
+Explain briefly that nutrition and portion estimates from photographs may be inaccurate and that individual glucose responses vary.
+
+Never display statements such as:
+
+"Your blood sugar will be 180 mg/dL."
+
+The feature analyzes the meal, not the user's actual blood glucose.
+
+STEP 7 — UX
+
+Keep the result visual and easy to understand.
+
+Suggested structure:
+
+[Meal photo]
+
+ESTIMATED GLUCOSE IMPACT
+🟢 Low / 🟡 Moderate / 🔴 High
+
+Estimated nutrition
+Carbs
+Sugar
+Fiber
+Protein
+Fat
+Calories
+
+MAIN GLUCOSE DRIVERS
+1. Rice
+2. Falafel
+etc.
+
+WHY THIS RATING
+Short plain-language explanation.
+
+MAKE IT BETTER
+Food-specific modification suggestions.
+
+[Adjust Portions]
+[Recalculate]
+[Save Meal]
+
+Avoid overwhelming the user with technical nutritional data.
+
+STEP 8 — HISTORY
+
+If the existing DiabEats history architecture supports it cleanly, save plate analyses so users can reopen previous meals.
+
+Store:
+- image reference according to existing privacy/storage rules
+- detected foods
+- user-adjusted portions
+- nutrition estimate
+- glucose-impact classification
+- timestamp
+
+Do not introduce a new database system if the existing one can support this.
+
+STEP 9 — TESTING
+
+Add automated tests covering at minimum:
+
+- multiple foods detected
+- unknown food
+- low-confidence detection
+- portion adjustment
+- recalculation
+- carbohydrate aggregation
+- sugar vs carbohydrate distinction
+- glucose-impact classification
+- missing nutrition data
+- AI/provider failure
+- malformed AI output
+- photo permission regression
+- existing BioTrace functionality remains operational
+
+Also verify Android generated permissions still contain NO:
+READ_MEDIA_IMAGES
+READ_MEDIA_VIDEO
+READ_EXTERNAL_STORAGE
+
+Camera capture should continue requesting only the permissions currently required by the compliant implementation.
+
+IMPORTANT IMPLEMENTATION RULE
+
+Do not create a completely separate nutrition-analysis system.
+
+This should extend the existing DiabEats/BioTrace architecture so barcode scanning, food search, label analysis, menu analysis, and plate analysis share nutrition resolution and scoring infrastructure wherever appropriate.
+
+Before making changes, inspect the repository and tell me:
+1. What existing components can be reused.
+2. What new components/services are actually necessary.
+3. Whether any database/schema migration is required.
+4. Whether any new external API/provider is required.
+
+If no new provider is necessary, do not add one.
+
+Then implement the feature, run the relevant tests/type checks, and report:
+
+- files changed
+- architecture used
+- nutrition data sources used
+- glucose-impact calculation methodology
+- tests added/results
+- Android permission verification
+- anything that still requires manual testing
+
+Do not submit or publish a new Android/iOS release automatically.

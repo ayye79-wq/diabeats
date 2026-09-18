@@ -1,0 +1,102 @@
+1. ISSUE #1 — In-App Purchases NOT submitted ❗ (MAIN BLOCKER)
+🔴 Problem
+
+You showed a subscription screen ($6.99 / $59)
+But you DID NOT submit those products in App Store Connect.
+
+👉 Apple sees:
+
+UI shows payment ❌
+No products submitted ❌
+
+👉 So they stop review immediately
+
+✅ Fix (step-by-step)
+
+Go to App Store Connect → Your App → In-App Purchases
+
+Create:
+1. Monthly
+Name: DiabEats Premium Monthly
+Type: Auto-Renewable Subscription
+Price: $6.99
+2. Annual
+Name: DiabEats Premium Annual
+Price: $59
+Then:
+
+👉 Add them to your app submission
+👉 Upload screenshot (they REQUIRE this)
+
+⚠️ Alternative (faster if you’re not ready)
+
+👉 Remove / hide subscription screen temporarily
+
+Then resubmit
+
+🧠 2. ISSUE #2 — Privacy strings (camera & photos)
+🔴 Problem
+
+Your current system message is too generic:
+
+“DiabEats would like to access the camera”
+
+👉 Apple wants:
+WHY + HOW
+
+✅ Fix (copy-paste ready)
+Camera permission:
+DiabEats uses your camera to scan restaurant menus and analyze dishes to estimate blood sugar impact and provide personalized recommendations.
+Photo library:
+DiabEats allows you to upload menu photos from your library to analyze food items and provide blood sugar impact insights and meal recommendations.
+
+👉 Add these in:
+
+Info.plist
+NSCameraUsageDescription
+NSPhotoLibraryUsageDescription
+🧠 3. ISSUE #3 — AI disclosure (IMPORTANT)
+
+Apple is asking:
+
+Are you using AI? Where does data go?
+
+✅ You MUST answer them clearly
+
+Reply in App Store Connect like this 👇
+
+Copy-paste answer:
+1. Yes, the app uses AI to analyze menu items and provide recommendations related to blood sugar impact.
+
+2. Some user inputs (such as menu text or user questions) may be sent to a third-party AI service for processing.
+
+3. The app does not send personally identifiable information. Users can see exactly what is being analyzed (menu text or their question) before it is processed. No personal data such as contacts, location history, or health records are shared with third parties.
+⚠️ Important
+
+Even if you’re using OpenAI or similar:
+
+👉 DO NOT overcomplicate
+👉 Keep it:
+
+transparent
+simple
+non-medical
+🧠 BONUS ISSUE (you didn’t get flagged yet — but will)
+⚠️ Medical risk
+
+You say:
+
+“blood sugar impact analysis”
+
+Apple might later ask:
+
+👉 Is this medical advice?
+
+🔥 You already did something smart:
+
+Footer says:
+
+“Not medical advice”
+
+👉 KEEP THAT
+👉 Maybe make it slightly more visible

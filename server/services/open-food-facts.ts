@@ -5,11 +5,13 @@ import {
   type GmoStatus,
   type IngredientIndicator,
   type NormalizedProduct,
+  type StructuredIngredient,
   type NutritionFacts,
   type ProductSearchHit,
   type ProductSearchResult,
   type SweetenerKind,
 } from "../../shared/biotrace";
+import { resolveGenericCandidates, type GenericCandidateResolution } from "./biotrace-resolver";
 
 /**
  * Server-side Open Food Facts (OFF) client.
@@ -33,6 +35,7 @@ const PRODUCT_FIELDS = [
   "categories_tags",
   "image_front_url",
   "ingredients_text",
+  "ingredients",
   "ingredients_analysis_tags",
   "additives_tags",
   "additives_original_tags",
@@ -55,6 +58,9 @@ async function offFetch(url: string): Promise<unknown> {
     });
     if (res.status === 429) {
       throw new ProviderError("rate_limited", "Open Food Facts rate limit reached. Please try again shortly.");
+    }
+    if (res.status === 404) {
+      throw new ProviderError("not_found", "No product found for that barcode.");
     }
     if (!res.ok) {
       throw new ProviderError("provider_unavailable", `Open Food Facts responded with status ${res.status}.`);
@@ -139,13 +145,21 @@ const NOVEL_SWEETENERS: Record<string, string> = {
 const SUGAR_SWEETENERS: Record<string, string> = {
   sugar: "Sugar",
   sucrose: "Sucrose",
+  maltose: "Maltose",
   "high fructose corn syrup": "High-fructose corn syrup",
   "corn syrup": "Corn syrup",
+  "glucose syrup": "Glucose syrup",
+  "invert sugar": "Invert sugar",
   "cane sugar": "Cane sugar",
+  "brown sugar": "Brown sugar",
   dextrose: "Dextrose",
   fructose: "Fructose",
   "agave syrup": "Agave syrup",
+  "rice syrup": "Rice syrup",
+  "malt syrup": "Malt syrup",
+  "fruit juice concentrate": "Fruit juice concentrate",
   honey: "Honey",
+  molasses: "Molasses",
 };
 
 function detectSweeteners(ingredientsText: string | null): IngredientIndicator["sweeteners"] {
@@ -274,6 +288,30 @@ function buildNutrition(nutriments: Record<string, unknown>, servingSize: string
   };
 }
 
+/**
+ * Flattens Open Food Facts' `ingredients` taxonomy array (which nests
+ * compound ingredients, e.g. lecithin -> soya lecithin, inside an
+ * `ingredients` sub-array) into a flat list of `{ id, text }` entries. Each
+ * `id` is a language-agnostic canonical taxonomy id (e.g. "en:sugar"), and
+ * `text` is the original, possibly non-English, label text OFF extracted
+ * (e.g. "Sucre"). This lets the ingredient-explanation engine recognize an
+ * ingredient regardless of the product's label language, using only data
+ * the provider actually supplied.
+ */
+function flattenStructuredIngredients(raw: unknown, depth = 0, out: StructuredIngredient[] = []): StructuredIngredient[] {
+  if (depth > 4 || !Array.isArray(raw)) return out;
+  for (const entry of raw) {
+    const item = asRecord(entry);
+    const id = asStringOrNull(item["id"]);
+    if (id) {
+      out.push({ id: id.slice(0, 160), text: asStringOrNull(item["text"])?.slice(0, 200) ?? null });
+    }
+    if (out.length >= 120) break;
+    flattenStructuredIngredients(item["ingredients"], depth + 1, out);
+  }
+  return out.slice(0, 120);
+}
+
 // ---------------------------------------------------------------------------
 // Normalizers
 // ---------------------------------------------------------------------------
@@ -281,7 +319,10 @@ function buildNutrition(nutriments: Record<string, unknown>, servingSize: string
 export function normalizeProduct(raw: unknown, requestedBarcode: string | null): NormalizedProduct {
   const product = asRecord(raw);
   const nutriments = asRecord(product["nutriments"]);
-  const code = asStringOrNull(product["code"]) ?? requestedBarcode;
+  // Exact lookups retain the identifier the user actually scanned. Providers
+  // may return an equivalent padded representation, but retry/history actions
+  // must continue to use the original value.
+  const code = requestedBarcode ?? asStringOrNull(product["code"]);
   const barcodeParsed = code && barcodeSchema.safeParse(code).success ? code : null;
   const name = asStringOrNull(product["product_name"]) ?? "Unnamed product";
   const ingredientsText = asStringOrNull(product["ingredients_text"]);
@@ -311,6 +352,10 @@ export function normalizeProduct(raw: unknown, requestedBarcode: string | null):
     categories: asStringArray(product["categories_tags"], 40).map((c) => c.replace(/^\w+:/u, "").replace(/-/gu, " ")).slice(0, 40),
     imageAvailable: asStringOrNull(product["image_front_url"]) !== null,
     ingredientsText: ingredientsText ? ingredientsText.slice(0, 6000) : null,
+    ingredientsStructured: (() => {
+      const flattened = flattenStructuredIngredients(product["ingredients"]);
+      return flattened.length ? flattened : null;
+    })(),
     nutrition: buildNutrition(nutriments, servingSize, servingQuantity),
     ingredients: buildIngredientIndicator(ingredientsText, additiveTags),
     gmo: buildGmoAssessment(analysisTags, labelTags),
@@ -322,6 +367,14 @@ export function normalizeProduct(raw: unknown, requestedBarcode: string | null):
       url: barcodeParsed ? `${OFF_BASE}/product/${barcodeParsed}` : null,
       retrievedAt: new Date().toISOString(),
       completeness,
+      freshness: "live",
+    },
+    resolution: {
+      kind: "exact",
+      evidenceType: "gtin",
+      confidence: "provider-confirmed",
+      confirmationRequired: false,
+      explanation: "Open Food Facts returned a product record for this GTIN.",
     },
   };
 }
@@ -346,7 +399,11 @@ export async function lookupByBarcode(barcode: string): Promise<NormalizedProduc
   return normalizeProduct(json["product"], code);
 }
 
-export async function searchByName(query: string, page = 1, pageSize = 20): Promise<ProductSearchResult> {
+export type ProductProviderSearchResult = ProductSearchResult & {
+  genericResolution: GenericCandidateResolution;
+};
+
+export async function searchByName(query: string, page = 1, pageSize = 20): Promise<ProductProviderSearchResult> {
   const trimmedQuery = query.trim();
   const safePage = Math.min(Math.max(1, Math.floor(page)), 20);
   const safePageSize = Math.min(Math.max(1, Math.floor(pageSize)), 50);
@@ -355,7 +412,7 @@ export async function searchByName(query: string, page = 1, pageSize = 20): Prom
     search_terms: trimmedQuery,
     page: String(safePage),
     page_size: String(safePageSize),
-    fields: "code,product_name,brands,image_front_url,nutriscore_grade",
+    fields: PRODUCT_FIELDS,
     json: "1",
   });
   const url = `${OFF_STAGING}/cgi/search.pl?${params.toString()}`;
@@ -381,6 +438,10 @@ export async function searchByName(query: string, page = 1, pageSize = 20): Prom
     .filter((hit): hit is ProductSearchHit => hit !== null)
     .slice(0, safePageSize);
 
+  const normalizedCandidates = productsRaw
+    .map((entry) => normalizeProduct(entry, null))
+    .filter((candidate) => candidate.name !== "Unnamed product");
+
   return {
     query: trimmedQuery.slice(0, 200),
     total: asNumberOrNull(json["count"]) ?? hits.length,
@@ -388,5 +449,6 @@ export async function searchByName(query: string, page = 1, pageSize = 20): Prom
     pageSize: safePageSize,
     hits,
     source: "open-food-facts",
+    genericResolution: resolveGenericCandidates(trimmedQuery, normalizedCandidates),
   };
 }

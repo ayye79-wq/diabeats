@@ -37,9 +37,9 @@ const SCORE_TEXT: Record<string, string> = {
   avoid: Colors.brand.avoidText,
 };
 const SCORE_LABEL: Record<string, string> = {
-  good: "Better Choice",
-  caution: "Use Caution",
-  avoid: "Avoid",
+  good: "Better choice",
+  caution: "Moderate impact",
+  avoid: "Higher impact",
 };
 
 export default function ScanScreen() {
@@ -114,11 +114,6 @@ export default function ScanScreen() {
       showPaywall("scan-limit");
       return;
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Gallery Access Needed", "Please allow photo library access in your settings.");
-      return;
-    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
@@ -186,7 +181,7 @@ export default function ScanScreen() {
           </View>
           <View style={styles.resultsBadgeRow}>
             <View style={[styles.resultsBadge, { backgroundColor: Colors.brand.goodLight }]}>
-              <Text style={[styles.resultsBadgeText, { color: Colors.brand.goodText }]}>{goodCount} Better Choices</Text>
+              <Text style={[styles.resultsBadgeText, { color: Colors.brand.goodText }]}>{goodCount} Better choices</Text>
             </View>
             {avoidCount > 0 && (
               <View style={[styles.resultsBadge, { backgroundColor: Colors.brand.avoidLight }]}>
@@ -205,7 +200,7 @@ export default function ScanScreen() {
             <View style={[styles.safetyCard, { backgroundColor: Colors.brand.cautionLight, borderColor: Colors.brand.caution }]}>
               <Ionicons name="information-circle-outline" size={16} color={Colors.brand.cautionText} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.safetyTitle, { color: Colors.brand.cautionText }]}>Image-based estimate</Text>
+                <Text style={[styles.safetyTitle, { color: Colors.brand.cautionText }]}>Image-based educational summary</Text>
                 <Text style={[styles.safetyText, { color: Colors.brand.cautionText }]}>Used: {result.informationUsed.join(" · ")}</Text>
                 <Text style={[styles.safetyText, { color: Colors.brand.cautionText }]}>{result.limitations}</Text>
                 <Text style={[styles.safetyText, { color: Colors.brand.cautionText }]}>{result.verification}</Text>
@@ -270,7 +265,7 @@ export default function ScanScreen() {
           )}
         </View>
         <Text style={styles.initialSubtitle}>
-          Scan a menu to compare visible food patterns. Results are estimates, not medical advice.
+          Scan a menu to compare visible food patterns. Results are educational comparisons, not medical advice or individual glucose predictions.
         </Text>
       </View>
 

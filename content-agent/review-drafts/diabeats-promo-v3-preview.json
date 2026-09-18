@@ -1,0 +1,54 @@
+{
+  "id": "diabeats-promo-v3-preview",
+  "createdAt": "2026-08-22T13:30:43.526Z",
+  "status": "draft",
+  "topic": "A quick nutrition comparison before you order",
+  "featureIds": [
+    "menu-item-information",
+    "meal-comparison"
+  ],
+  "featureClaims": [
+    {
+      "featureId": "menu-item-information",
+      "claim": "View restaurant menu-item details and nutrition information."
+    },
+    {
+      "featureId": "meal-comparison",
+      "claim": "Compare restaurant meals using the available meal comparison tools."
+    }
+  ],
+  "hook": "Before you order, compare this first",
+  "voiceover": "Before you order, compare this first. In this example, a burger, fries, and soda total 96 grams of carbs and 24 grams of protein. A grilled chicken salad with water has 28 grams of carbs and 35 grams of protein. Menus vary, so check the actual details.",
+  "scenes": [
+    {
+      "seconds": 4,
+      "onScreenText": "Before you order, compare this first",
+      "visual": "A high-carb classic beside an alternative meal."
+    },
+    {
+      "seconds": 4,
+      "onScreenText": "HIGH-CARB CLASSIC\nBurger + fries + soda\nExample: 96g carbs / 24g protein",
+      "visual": "A recognizable burger, fries, and sugary soda."
+    },
+    {
+      "seconds": 4,
+      "onScreenText": "LOWER-CARB OPTION\nChicken salad + water\nExample: 28g carbs / 35g protein",
+      "visual": "A grilled chicken salad with water."
+    },
+    {
+      "seconds": 4,
+      "onScreenText": "Check serving size and menu details",
+      "visual": "A restaurant menu beside both meal options."
+    }
+  ],
+  "caption": "Example comparison only: restaurant meals and portions vary. Check the actual menu details before you order.",
+  "hashtags": [
+    "#DiabEats",
+    "#EatingOut",
+    "#NutritionEducation",
+    "#MealComparison"
+  ],
+  "disclaimer": "General education only - not medical advice.",
+  "callToAction": "Explore DiabEats",
+  "presentationTemplate": "diabeats-social-v3"
+}

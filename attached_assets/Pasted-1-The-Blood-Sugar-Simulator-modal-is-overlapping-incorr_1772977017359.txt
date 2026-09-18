@@ -1,0 +1,151 @@
+1️⃣ The “Blood Sugar Simulator” modal is overlapping incorrectly
+
+The simulator panel is floating on top, but the background screen is still visible and interactive-looking.
+
+You can see:
+
+The Ribeye Steak 12oz page
+
+The ingredients list behind
+
+The simulator panel on top
+
+This creates a visual conflict because the user cannot tell:
+
+Is this a popup?
+
+Is it part of the page?
+
+Should they scroll the background or the panel?
+
+A proper modal should:
+
+Dim the background
+
+Disable interaction behind it
+
+Example expected behavior:
+
+Background → darkened
+Simulator → clearly foreground
+
+Right now the background looks half-active.
+
+2️⃣ Text from two layers is colliding
+
+The text “Blood Sugar Simulator” is overlapping the ingredient list underneath.
+
+You can see:
+
+“Dry-aged USDA Choice ribeye”
+
+simulator header
+
+background UI
+
+All stacked visually together.
+
+That means the modal is likely missing proper z-index + backdrop styling.
+
+3️⃣ The CTA (“Unlock Simulation”) is confusing
+
+The button shows:
+
+Unlock Simulation 🔒
+
+But the user already opened the simulator.
+
+So psychologically it feels like:
+
+“Why did you open something I can't use?”
+
+Better flow would be:
+
+Option A (recommended):
+
+Preview Simulation
+Unlock Full Simulation
+
+Option B:
+
+Show the result blurred, then unlock.
+
+UX Issue Summary
+
+Current experience feels like:
+
+Page
+↓
+Popup
+↓
+Another layer
+↓
+Locked feature
+
+Too many layers.
+
+A regular user might think:
+
+“Did the app glitch?”
+
+Simple Fix (Best UX)
+
+Make the simulator a bottom sheet modal.
+
+Structure:
+
+Meal Page
+     ↓
+Tap "Blood Sugar Simulator"
+     ↓
+Full bottom sheet opens
+     ↓
+Background dimmed
+
+Example layout:
+
+-------------------------
+Blood Sugar Simulator
+Toggle ingredients
+-------------------------
++ Rice
++ Tortilla
++ Cheese
+-------------------------
+[ Run Simulation ]
+
+Much cleaner.
+
+One More Thing I Noticed (Important)
+
+For Ribeye Steak, showing options like:
+
+tortilla
+
+white rice
+
+brown rice
+
+doesn't feel realistic.
+
+Users might think:
+
+“Why would I add rice to a ribeye steak?”
+
+The extras should probably be context-aware per restaurant.
+
+Example:
+
+For steakhouse:
+
+Mashed potatoes
+Grilled asparagus
+Butter
+Steak sauce
+Overall
+
+Your Blood Sugar Simulator idea is excellent — it could become one of the most unique features in DiabEats.
+
+But the modal presentation needs polishing so users immediately understand what they’re looking at.
+
+If you want, I can also show you one UI tweak that would make this simulator feel like a premium AI feature instead of a popup.

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 import Colors from "@/constants/colors";
+import { trackWebEvent } from "@/lib/webAnalytics";
 
 export default function ScanHubScreen() {
   const insets = useSafeAreaInsets();
@@ -38,7 +39,35 @@ export default function ScanHubScreen() {
         </View>
 
         <Pressable
-          onPress={() => router.push("/(tabs)/scan")}
+          onPress={() => {
+            trackWebEvent("scan_type_selected", { scan_type: "plate" });
+            router.push("/(tabs)/plate");
+          }}
+          style={({ pressed }) => [
+            styles.choice,
+            { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.88 : 1 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Analyze My Plate"
+          accessibilityHint="Photograph a plated meal for a food-only impact estimate"
+        >
+          <View style={[styles.choiceIcon, { backgroundColor: "#7C3AED" }]}>
+            <Ionicons name="camera-outline" size={26} color="#fff" />
+          </View>
+          <View style={styles.choiceCopy}>
+            <Text style={[styles.choiceTitle, { color: c.textPrimary }]}>Analyze My Plate</Text>
+            <Text style={[styles.choiceSubtitle, { color: c.textSecondary }]}>
+              Estimate visible foods, portions, nutrition, and meal impact.
+            </Text>
+          </View>
+          <Ionicons name="arrow-forward" size={21} color={Colors.brand.primary} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            trackWebEvent("scan_type_selected", { scan_type: "menu" });
+            router.push("/(tabs)/scan");
+          }}
           style={({ pressed }) => [
             styles.choice,
             { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.88 : 1 },
@@ -62,7 +91,10 @@ export default function ScanHubScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.push("/(tabs)/biotrace")}
+          onPress={() => {
+            trackWebEvent("scan_type_selected", { scan_type: "product" });
+            router.push("/(tabs)/biotrace");
+          }}
           style={({ pressed }) => [
             styles.choice,
             { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.88 : 1 },

@@ -17,6 +17,8 @@ export async function ensureSecuritySchema(): Promise<void> {
       revenue_cat_user_id TEXT NOT NULL UNIQUE,
       usage_key TEXT NOT NULL,
       is_premium BOOLEAN NOT NULL DEFAULT FALSE,
+       subscription_event_id TEXT,
+       subscription_event_at TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       expires_at TIMESTAMP NOT NULL
     );
@@ -34,6 +36,8 @@ export async function ensureSecuritySchema(): Promise<void> {
 
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS session_id TEXT;
     ALTER TABLE app_sessions ADD COLUMN IF NOT EXISTS usage_key TEXT;
+    ALTER TABLE app_sessions ADD COLUMN IF NOT EXISTS subscription_event_id TEXT;
+    ALTER TABLE app_sessions ADD COLUMN IF NOT EXISTS subscription_event_at TIMESTAMP;
     UPDATE app_sessions SET usage_key = id WHERE usage_key IS NULL;
     ALTER TABLE app_sessions ALTER COLUMN usage_key SET NOT NULL;
     ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS usage_key TEXT;
@@ -98,5 +102,27 @@ export async function ensureSecuritySchema(): Promise<void> {
       status TEXT NOT NULL DEFAULT 'open',
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
+
+    -- BioTrace: aggregate reference gaps only; never stores scan ownership,
+    -- product context, barcodes, label photos, or raw ingredient lists.
+    CREATE TABLE IF NOT EXISTS biotrace_unclassified_ingredients (
+      ingredient_key TEXT PRIMARY KEY,
+      canonical_id TEXT,
+      ingredient_name TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS biotrace_unclassified_ingredients_count_idx
+      ON biotrace_unclassified_ingredients(count DESC);
+
+    -- Plate analysis history: structured results only; raw photos are never stored.
+    CREATE TABLE IF NOT EXISTS meal_photo_analyses (
+      id SERIAL PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES app_sessions(id) ON DELETE CASCADE,
+      meal_name TEXT NOT NULL,
+      analysis JSONB NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS meal_photo_analyses_session_id_idx
+      ON meal_photo_analyses(session_id, id DESC);
   `);
 }

@@ -2,11 +2,33 @@ import OpenAI from "openai";
 import { writeFile } from "node:fs/promises";
 import { z } from "zod";
 import { APPROVED_FEATURE_IDS, approvedFeatureClaimsFor, approvedFeatureManifestForPrompt } from "./feature-manifest";
+import {
+  selectRotationPackage,
+  validateRotationPackage,
+  type ContentRotationPackage,
+} from "./rotation";
 import { CONTENT_DISCLAIMER, validateContent } from "./safety";
 import type { ContentPackage } from "./types";
+import { DEFAULT_DIABEATS_VIDEO_TEMPLATE } from "./video-template";
 
 const MAX_VISUAL_DESCRIPTION_LENGTH = 180;
 const MAX_DRAFT_ATTEMPTS = 3;
+
+function createContentAgentClient() {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Content Agent requires the configured AI integration.");
+  return new OpenAI({
+    apiKey,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+}
+
+function contentAgentVoice() {
+  const voice = process.env.CONTENT_AGENT_VOICE;
+  return voice === "alloy" || voice === "echo" || voice === "fable" || voice === "onyx" || voice === "nova" || voice === "shimmer"
+    ? voice
+    : "alloy";
+}
 
 const draftSchema = z.object({
   topic: z.string().min(3).max(100),
@@ -40,7 +62,7 @@ export function parseGeneratedDraft(raw: string) {
   return draftSchema.parse(normalized);
 }
 
-function createContentPackage(raw: string): ContentPackage {
+function createContentPackage(raw: string, rotationPackage: ContentRotationPackage): ContentPackage {
   const draft = parseGeneratedDraft(raw);
   const now = new Date();
   const content: ContentPackage = {
@@ -50,17 +72,43 @@ function createContentPackage(raw: string): ContentPackage {
     createdAt: now.toISOString(),
     status: "draft",
     disclaimer: CONTENT_DISCLAIMER,
+    rotationPackageId: rotationPackage.id,
+    rotationImageSetId: rotationPackage.imageSetId,
+    presentationTemplate: DEFAULT_DIABEATS_VIDEO_TEMPLATE.id,
   };
-  const errors = validateContent(content);
+  const errors = [
+    ...validateContent(content),
+    ...validateRotationPackage(content, rotationPackage),
+  ];
   if (errors.length) throw new Error(`Content safety check failed: ${errors.join("; ")}`);
   return content;
 }
 
-export function generationPrompt(previousTopics: string[], retrying = false) {
-  const retryInstruction = retrying
+export function generationPrompt(
+  previousTopics: string[],
+  rotationPackageOrRetrying?: ContentRotationPackage | boolean,
+  retrying = false,
+) {
+  // Keep the old (topics, retrying) call shape available to preview tooling and
+  // older tests while normal generation supplies a selected rotation package.
+  const rotationPackage = typeof rotationPackageOrRetrying === "object" ? rotationPackageOrRetrying : undefined;
+  const isRetrying = typeof rotationPackageOrRetrying === "boolean" ? rotationPackageOrRetrying : retrying;
+  const retryInstruction = isRetrying
     ? "Your previous draft did not meet the required JSON format or safety rules. Regenerate from scratch and follow every constraint exactly. "
     : "";
+  const rotationInstruction = rotationPackage
+    ? `
+This draft must use the selected content rotation package exactly:
+- package ID: ${rotationPackage.id}
+- meal concept: ${rotationPackage.mealConcept}
+- exact opening hook: ${rotationPackage.hook}
+- exact nutrition example: ${rotationPackage.nutritionExample}
+- required details to include in the voiceover or scene text: ${rotationPackage.requiredTerms.join(", ")}
+Use the exact hook and nutrition numbers above. Do not substitute a different meal, image context, or nutrition example. Keep all numbers explicitly labeled as examples and remind viewers that menus and portions vary.`
+    : "";
   return `${retryInstruction}Create one 20-35 second vertical TikTok concept for DiabEats, an app that helps people make more informed restaurant and packaged-food choices. Be warm, useful, specific, and never diagnose, prescribe, promise glucose outcomes, use cure/reversal/guarantee language, claim food is diabetic-safe, or give medication instructions. Encourage verification of restaurant/label nutrition. Avoid these recent topics: ${previousTopics.join(", ") || "none"}.
+
+${rotationInstruction}
 
 The app capabilities you may advertise are restricted to this approved manifest. Select one to three featureIds from it. Do not make any DiabEats capability claim in the hook, voiceover, on-screen text, caption, or CTA; the approved canonical claims are derived separately from selected featureIds. The only permitted model-written brand CTAs are "Explore DiabEats", "Explore more in DiabEats", or "Explore options in DiabEats". Do not paraphrase, imply, or advertise any other DiabEats workflow.
 ${approvedFeatureManifestForPrompt()}
@@ -68,19 +116,23 @@ ${approvedFeatureManifestForPrompt()}
 Never claim portion sliders, pinned meal-specific carb targets, restaurant-PDF opening, glucose prediction, or any unsupported workflow. The hook must be 55 characters or fewer. Return JSON only with topic, featureIds, hook, voiceover, scenes [{seconds,onScreenText,visual}], caption, hashtags, callToAction. Each scene visual must be a concise production note of 180 characters or fewer.`;
 }
 
-export async function generateContent(previousTopics: string[]): Promise<ContentPackage> {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
+export async function generateContent(
+  previousTopics: string[],
+  recentRotationPackageIds: readonly string[] = [],
+): Promise<ContentPackage> {
+  const client = createContentAgentClient();
+  const rotationPackage = selectRotationPackage(recentRotationPackageIds);
   let lastValidationError: unknown;
 
   for (let attempt = 1; attempt <= MAX_DRAFT_ATTEMPTS; attempt += 1) {
     const response = await client.responses.create({
       model: process.env.CONTENT_AGENT_MODEL || "gpt-5-mini",
-      input: generationPrompt(previousTopics, attempt > 1),
+      input: generationPrompt(previousTopics, rotationPackage, attempt > 1),
     });
     const raw = response.output_text.replace(/```json\s*|```/g, "").trim();
 
     try {
-      return createContentPackage(raw);
+      return createContentPackage(raw, rotationPackage);
     } catch (error) {
       lastValidationError = error;
     }
@@ -91,7 +143,17 @@ export async function generateContent(previousTopics: string[]): Promise<Content
 }
 
 export async function createVoiceover(text: string, destination: string) {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY });
-  const audio = await client.audio.speech.create({ model: "gpt-4o-mini-tts", voice: process.env.CONTENT_AGENT_VOICE || "coral", input: text });
-  await writeFile(destination, Buffer.from(await audio.arrayBuffer()));
+  const client = createContentAgentClient();
+  const response = await client.chat.completions.create({
+    model: "gpt-audio",
+    modalities: ["text", "audio"],
+    audio: { voice: contentAgentVoice(), format: "mp3" },
+    messages: [
+      { role: "system", content: "You are a clear, warm narrator. Repeat the provided script verbatim." },
+      { role: "user", content: text },
+    ],
+  });
+  const audioData = (response.choices[0]?.message as { audio?: { data?: string } } | undefined)?.audio?.data;
+  if (!audioData) throw new Error("Content Agent speech generation returned no audio.");
+  await writeFile(destination, Buffer.from(audioData, "base64"));
 }

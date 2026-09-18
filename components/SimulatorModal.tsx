@@ -350,7 +350,7 @@ export function SimulatorModal({
                  Meal Impact Explorer
               </Text>
               <Text style={[styles.sheetSub, { color: c.textMuted }]}>
-                 Compare food patterns—not a glucose prediction
+                 Educational meal-impact comparison; it does not predict individual glucose response
               </Text>
             </View>
             <Pressable onPress={handleClose} hitSlop={12} testID="close-simulator">
@@ -577,7 +577,7 @@ export function SimulatorModal({
             )}
             {result && (
               <Text style={styles.simDisclaimer}>
-                Educational comparison only · Not a glucose prediction or medical advice
+                Educational comparison only · It does not predict individual glucose response or provide medical advice
               </Text>
             )}
           </ScrollView>

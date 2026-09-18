@@ -2,17 +2,17 @@
 
 A mobile decision engine helping people with diabetes make smarter restaurant meal choices. Positioned as "Food GPS for Diabetes."
 
-**Version**: 1.3.1 (Build 26) — needs new EAS build + App Store submission
+**Version**: 1.3.4 — iOS build 38, with the RevenueCat paywall update and required version bump, is uploaded to App Store Connect and processing for TestFlight; Android version code 8 is on Google Play Closed testing, and code 9 is the Photo Picker-compliant AAB submitted to the Alpha/closed-testing track.
 
 ## App Overview
 
 DiabEats helps users with diabetes make smarter eating choices by:
-- Onboarding: 5-step setup capturing diabetes type, insulin use, carb targets, diet goals
+- Onboarding: 4-step setup with optional diabetes type, insulin use, and care-plan carbohydrate target
 - Finding nearby restaurants with GPS or manual search
 - Health-intent search: "Low carb dinner near me", "Under 30g carbs", etc.
 - Menu items rated for diabetic friendliness (Good / Caution / Avoid)
 - AI-powered meal analysis explaining glycemic impact
-- Blood Sugar Impact scoring per meal with estimated glucose rise
+- Educational meal-impact comparisons based on listed nutrition; DiabEats does not predict an individual glucose response
 - "How to Order This" guide (order steps / what to ask / what to avoid)
 - Saving favorite restaurants and meals
 - Meal logging with blood glucose tracking (before/after)
@@ -34,7 +34,7 @@ Free tier limits (tracked daily in AsyncStorage):
 - Basic meal scores visible; full AI analysis locked (paywall on meal detail)
 - "Best Meal Pick" locked (paywall on restaurant detail)
 
-Premium tier ($6.99/month or $59/year via RevenueCat):
+Premium tier (store-localized monthly and annual prices delivered by RevenueCat):
 - Unlimited AI assistant, unlimited scans
 - Full AI meal analysis
 - Best Meal AI pick on every restaurant page
@@ -53,7 +53,7 @@ Demo premium: `enableDemoPremium()` stores `@diabeats_demo_premium=true` in Asyn
 
 ## Tech Stack
 
-- **Frontend**: Expo Router (React Native) — file-based routing, version 1.1.0
+- **Frontend**: Expo Router (React Native) — file-based routing on Expo SDK 57
 - **Backend**: Express + TypeScript on port 5000
 - **Database**: PostgreSQL via Drizzle ORM
 - **AI**: OpenAI via Replit AI Integrations (gpt-4o-mini, gpt-4o for vision)
@@ -61,14 +61,14 @@ Demo premium: `enableDemoPremium()` stores `@diabeats_demo_premium=true` in Asyn
 - **Location**: expo-location for GPS
 - **Notifications**: expo-notifications (configured in app.json plugins)
 - **Payments**: RevenueCat (react-native-purchases)
-- **Tabs**: NativeTabs with LiquidGlass (iOS 26+) / BlurView classic tabs fallback
+- **Tabs**: Stable Expo Router tabs
 
 ## File Structure
 
 ```
 app/
   _layout.tsx              # Root layout — fonts, providers, onboarding gate
-  onboarding.tsx           # 5-step onboarding (diabetes type, insulin, carb goal)
+  onboarding.tsx           # 4-step onboarding (optional profile and care-plan target)
   (tabs)/
     _layout.tsx            # NativeTabs / Classic tab layout
     index.tsx              # Discover — health search + restaurant browse
@@ -134,7 +134,15 @@ constants/
 ## Design
 
 - **Theme**: Deep forest green primary (#166534), bright green accent (#22C55E), warm amber (#F59E0B)
-- **Score System**: Green (Better Choice), Amber (Use Caution), Red (Limit or Avoid)
+- **BioTrace labels**: Better choice, Moderate impact, Higher impact, Not enough information
+- **Meal guidance**: Educational comparisons based on available nutrition and ingredients; DiabEats does not predict an individual glucose response.
+
+### USDA FoodData Central fallback
+
+- Configuration: `USDA_API_KEY`
+- Adapter: `server/services/usda-food-data.ts`
+- Coverage: USDA normalization and fallback tests in `tests/biotrace-universal.test.ts`
+- Cache freshness values: `fresh-cache` and `stale-cache`
 - **Font**: Inter (400, 500, 600, 700)
 - **Background**: Warm light (#F7FDF9) / Dark (#0B1810)
 - **Dark mode**: Fully supported via useColorScheme()
@@ -142,7 +150,7 @@ constants/
 ## App Store Configuration (app.json)
 
 - Bundle ID: `com.diabeats.app`
-- Version: `1.1.0`, Build: `1`
+- Version: `1.3.4`, Build: `38`
 - Plugins: expo-router, expo-font, expo-web-browser, expo-location, expo-notifications
 - iOS permissions: Camera, Photo Library, Location, Notifications
 - Privacy: `ITSAppUsesNonExemptEncryption: false`
@@ -171,35 +179,35 @@ Changes made to diabeatsapp.com:
 ### In-App Paywall (components/PaywallModal.tsx) — completed, needs new app build
 
 Changes made to the premium upgrade screen:
-- Added green banner at top: "Try free for 7 days — no charge until then" (gift icon)
-- Subscribe button changed from "Subscribe — $6.99/mo" → "Start 7-Day Free Trial"
-- Fine print now dynamically shows: "Free for 7 days, then $6.99/month. Cancel anytime." or "…then $59.99/year ($5.00/mo). Cancel anytime." depending on selected plan
+- Store prices, annual savings, and intro-offer language come from the current RevenueCat package on iOS and Android instead of hardcoded copy.
+- Web and Expo Go do not show invented store prices or allow a purchase attempt; a signed native build supplies the live store package.
+- Purchase actions use the selected RevenueCat package, keeping the iOS and Android store product identifiers platform-specific.
 
-### Pending: Enable Free Trial in the Stores (manual — no code required)
+### Store trial configuration
 
-The app UI now shows the 7-day free trial. To make it actually work, you must activate it in both stores:
+RevenueCat currently reports a one-week introductory trial for the App Store monthly product. It does not report a trial for the App Store annual product or either Google Play product, so the app only shows an intro offer when the active store package supplies one.
 
 **App Store Connect (iOS):**
 1. App Store Connect → Your App → Subscriptions
-2. Select `diabeats_premium:monthly` → Add Introductory Offer → Free Trial → 7 days → Save
-3. Repeat for `diabeats_premium:annual` if desired
+2. Select the monthly or annual subscription product → Add Introductory Offer → Free Trial → choose the desired duration → Save
 4. No new build needed — goes live within minutes
 
 **Google Play Console (Android):**
-1. Subscriptions → `diabeats_premium:monthly` → Add free trial → 7 days → Save
-2. Repeat for `diabeats_premium:annual` if desired
+1. Subscriptions → select the monthly or annual product → Add free trial → choose the desired duration → Save
 3. No new build needed
 
 RevenueCat picks up the trial automatically once it's set in the stores.
 
-### Pending: Closed Testing Requirement (Android)
+### Closed Testing Requirement (Android)
 
 Before Google Play production launch: need 12 testers on the Internal/Closed track for 14 days.
 - User posted TikTok asking for testers at `partners@diabeatsapp.com`
-- Current status: AAB (version code 2) uploaded to Internal Testing — Active
+- Current status: version 1.3.4 / code 8 remains documented as the prior Closed/alpha testing release, with 12 or more testers opted in for the required 14-day period. Version code 9 is the verified Photo Picker-compliant AAB submitted to Alpha; the older code 2 releases on other tracks still need Play Console cleanup.
 - Android package name: `com.diabeats.android`
 
-### Current Metrics (as of last session)
-- RevenueCat: 1 active subscriber ($6.99/mo), 83 active customers, $7 MRR
-- Conversion rate: ~1.2%, no trials, no annual subscribers
+### Current RevenueCat snapshot (2026-08-22)
+- 1 active subscription and 0 active trials
+- $6 MRR, and $6.99 revenue over the last 28 days
+- 17 new customers and 19 active users over the last 28 days
+- The current offering has monthly and annual packages mapped for the App Store, Google Play, and RevenueCat Test Store
 - App Store ID: `6760898764`

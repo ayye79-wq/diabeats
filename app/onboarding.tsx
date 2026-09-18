@@ -10,17 +10,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp, DiabetesType } from "@/context/AppContext";
 import Colors from "@/constants/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 
 type Step = 1 | 2 | 3 | 4;
 
 export default function OnboardingScreen() {
-  const { completeOnboarding, setDiabetesType, setUsesInsulin } = useApp();
+  const { completeOnboarding, setDiabetesType, setUsesInsulin, setDietGoal } = useApp();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>(1);
 
   // Local state for choices until completion
-  const [localDiabetesType, setLocalDiabetesType] = useState<DiabetesType>("type2");
+  const [localDiabetesType, setLocalDiabetesType] = useState<DiabetesType>(null);
   const [localUsesInsulin, setLocalUsesInsulin] = useState<boolean>(false);
 
   const handleNext = () => {
@@ -30,6 +29,7 @@ export default function OnboardingScreen() {
       // Finalize
       setDiabetesType(localDiabetesType);
       setUsesInsulin(localUsesInsulin);
+      setDietGoal("balanced");
       completeOnboarding();
     }
   };
@@ -44,7 +44,7 @@ export default function OnboardingScreen() {
     switch (step) {
       case 1:
         return (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepContainer}>
+          <View style={styles.stepContainer}>
             <View style={styles.iconContainer}>
               <Ionicons name="restaurant" size={80} color={Colors.brand.primary} />
             </View>
@@ -53,11 +53,11 @@ export default function OnboardingScreen() {
               The smart way to manage your diabetes while eating out. We help you find
               diabetic-friendly meals at your favorite restaurants.
             </Text>
-          </Animated.View>
+          </View>
         );
       case 2:
         return (
-          <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={styles.stepContainer}>
+          <View style={styles.stepContainer}>
             <Text style={styles.title}>What type of diabetes do you have?</Text>
             <View style={styles.optionsContainer}>
               {(["type1", "type2", "prediabetic", "gestational", null] as DiabetesType[]).map((type) => (
@@ -88,11 +88,11 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </Animated.View>
+          </View>
         );
       case 3:
         return (
-          <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={styles.stepContainer}>
+          <View style={styles.stepContainer}>
             <Text style={styles.title}>Do you use insulin?</Text>
             <View style={styles.optionsContainer}>
               {[
@@ -118,11 +118,11 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </Animated.View>
+          </View>
         );
       case 4:
         return (
-          <Animated.View entering={SlideInRight} exiting={SlideOutLeft} style={styles.stepContainer}>
+          <View style={styles.stepContainer}>
             <View style={styles.iconContainer}>
               <Ionicons name="checkmark-circle" size={80} color={Colors.brand.good} />
             </View>
@@ -138,14 +138,18 @@ export default function OnboardingScreen() {
                 <Text style={styles.summaryLabel}>Insulin Use</Text>
                 <Text style={styles.summaryValue}>{localUsesInsulin ? "Yes" : "No"}</Text>
               </View>
+              <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Carbohydrate target</Text>
+                  <Text style={styles.summaryValue}>Set later from your care plan</Text>
+              </View>
             </View>
             <Text style={styles.description}>
-              We’ll use this information to organize educational food insights. Set a carbohydrate target later only if it comes from your own care plan.
+              DiabEats provides educational food insights. Add a carbohydrate target later only if it comes from your personal care plan or healthcare professional.
             </Text>
             <Text style={styles.legalNote}>
               DiabEats is for informational purposes only and is not a medical device. It does not diagnose, treat, or prevent diabetes. Always consult your healthcare team before making changes to your diet or medication.
             </Text>
-          </Animated.View>
+          </View>
         );
     }
   };
@@ -174,7 +178,12 @@ export default function OnboardingScreen() {
       <View style={styles.content}>{renderStep()}</View>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={step === 4 ? "Start Exploring" : "Continue"}
+          style={styles.nextButton}
+          onPress={handleNext}
+        >
           <Text style={styles.nextButtonText}>
             {step === 4 ? "Start Exploring" : "Continue"}
           </Text>

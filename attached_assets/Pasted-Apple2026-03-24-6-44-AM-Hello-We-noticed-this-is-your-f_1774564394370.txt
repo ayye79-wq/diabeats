@@ -1,0 +1,73 @@
+Apple2026-03-24 6:44 AM
+Hello, 
+
+We noticed this is your first app submission and want to congratulate you on joining the Apple Developer Program. We look forward to working together on your submissions.
+
+When App Review identifies an issue with a submission, we’ll contact you with a message in App Store Connect with details about what we found and how to resolve the issue. Learn more about App Review and tips for a smooth review experience. 
+
+See below for additional information about the issues that require your attention for this submission. If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+Review Environment
+Submission ID: 1570cac3-3d8d-4689-8f21-37453bce68f9
+Review date: March 24, 2026
+Review Device: iPhone 17 Pro Max
+Version reviewed: 1.0
+
+
+Guideline 2.1(b) - Performance - App Completeness
+
+Issue Description
+
+We are unable to complete the review of the app because one or more of the In-App Purchase products have not been submitted for review.
+
+Specifically, the app includes references to in app purchases but the associated In-App Purchase products have not been submitted for review. 
+
+
+Next Steps
+
+To resolve this issue, please be sure to take action and submit your In-App Purchases and upload a new binary in App Store Connect so we can proceed with our review. 
+
+Note you must provide an App Review screenshot in App Store Connect in order to submit In-App Purchases for review. Learn more about required In-App Purchase metadata.
+
+Resources 
+
+- Learn more about how to offer In-App Purchases.
+- Learn more about submitting In-App Purchases and subscriptions to App Review.
+
+
+Guideline 5.1.1(ii) - Legal - Privacy - Data Collection and Storage
+Issue Description
+
+One or more purpose strings in the app do not sufficiently explain the use of protected resources. Purpose strings must clearly and completely describe the app's use of data and, in most cases, provide an example of how the data will be used.
+
+Next Steps
+
+Update the camera and photo library purpose string to explain how the app will use the requested information and provide a specific example of how the data will be used. See the attached screenshot.
+
+Resources
+
+Purpose strings must clearly describe how an app uses the ability, data, or resource. The following are hypothetical examples of unclear purpose strings that would not pass review: 
+
+- "App would like to access your Contacts"
+- "App needs microphone access"
+
+See examples of helpful, informative purpose strings.
+
+
+Guideline 2.1 - Information Needed
+
+We need more information to continue the review.
+
+Next Steps
+
+Provide detailed answers to the following questions:
+
+1. Is your app utilizing a third-party AI to power its functionality?
+2. Is your app sending users data to any third-party AI(s) provider?
+3. If so, where in your app’s UI can users check the personal information that is being sent and to which third-parties?
+
+
+Support
+- Reply to this message in your preferred language if you need assistance. If you need additional support, use the Contact Us module.
+- Consult with fellow developers and Apple engineers on the Apple Developer Forums.
+- Provide feedback on this message and your review experience by completing a short survey.

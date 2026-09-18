@@ -1,0 +1,59 @@
+{
+  "topic": "Smart checks for eating out and packaged foods",
+  "featureIds": [
+    "menu-item-information",
+    "barcode-product-scanning"
+  ],
+  "hook": "Eating out? 3 quick ways to check nutrition",
+  "voiceover": "Three quick checks before you eat. First, when dining out, ask for or look up the menu nutrition—note total carbs and the serving size. Second, compare carbs, protein, and fiber between dishes to pick the more balanced option. Third, for packaged foods, read the nutrition facts: carbs per serving and ingredient order. Always verify the restaurant’s posted nutrition or the product label before relying on it.",
+  "scenes": [
+    {
+      "seconds": 3,
+      "onScreenText": "3 quick checks before you eat",
+      "visual": "Vertical close-up of smiling person holding phone and a menu; warm cafe background, text appears over shoulder."
+    },
+    {
+      "seconds": 6,
+      "onScreenText": "1) Check menu nutrition — carbs & serving size",
+      "visual": "Over-the-shoulder shot: finger scrolls a restaurant menu nutrition page on phone; numbers blurred but layout clear."
+    },
+    {
+      "seconds": 6,
+      "onScreenText": "2) Compare meals: carbs, protein, fiber",
+      "visual": "Split-screen of two plated meals on table; hands point at simple overlay numbers comparing carbs/protein/fiber."
+    },
+    {
+      "seconds": 6,
+      "onScreenText": "3) For packaged foods: read label — carbs/serving",
+      "visual": "Close-up of hand scanning a barcode on a snack box with phone camera, then a quick pan to the nutrition facts panel."
+    },
+    {
+      "seconds": 4,
+      "onScreenText": "Always verify posted nutrition or labels",
+      "visual": "Person nods, tucks phone away, and smiles at camera; calm ending shot, natural light, friendly tone."
+    }
+  ],
+  "caption": "Simple steps when eating out or choosing packaged foods: check carbs per serving, note serving size, compare protein and fiber, and always verify official nutrition info.",
+  "hashtags": [
+    "#NutritionTips",
+    "#EatingOut",
+    "#FoodLabels",
+    "#MealChoices",
+    "#DiabEats"
+  ],
+  "callToAction": "Explore DiabEats",
+  "featureClaims": [
+    {
+      "featureId": "menu-item-information",
+      "claim": "View restaurant menu-item details and nutrition information."
+    },
+    {
+      "featureId": "barcode-product-scanning",
+      "claim": "Scan a packaged product barcode to look up product information."
+    }
+  ],
+  "id": "20260821174056-bj2li",
+  "createdAt": "2026-08-21T17:40:56.256Z",
+  "status": "draft",
+  "disclaimer": "General education only - not medical advice."
+}

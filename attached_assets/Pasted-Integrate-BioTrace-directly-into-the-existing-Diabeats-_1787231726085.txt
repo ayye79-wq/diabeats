@@ -1,0 +1,170 @@
+Integrate **BioTrace directly into the existing Diabeats application** as a new food-intelligence feature. Do not build a separate app, replace the existing Diabeats design, or break any working functionality.
+
+## Product concept
+
+Diabeats helps users make diabetes-conscious food choices. BioTrace will expand it by showing what is inside packaged foods, how processed they are, and how their ingredients may affect the user’s nutritional goals.
+
+Add BioTrace as a clearly branded feature inside Diabeats:
+
+**BioTrace — Know What’s Inside Your Food**
+
+## Navigation
+
+Add a new primary navigation item named **Scan Food** with a barcode/scan icon.
+
+The BioTrace experience should also be accessible from:
+
+* The Diabeats home dashboard
+* Food search results
+* Saved foods
+* A prominent **Scan a Product** button
+
+Keep BioTrace visually consistent with the current Diabeats colors, typography, cards, buttons, spacing, and mobile-responsive layout.
+
+## Core user flow
+
+1. The user opens **Scan Food**.
+2. The user scans a barcode using the phone camera or manually enters the barcode.
+3. The app retrieves the product’s nutrition and ingredient information.
+4. If barcode scanning is unavailable, allow the user to search by product name or upload a clear photograph of the nutrition and ingredient labels.
+5. Show the product analysis on a simple results screen.
+6. Allow the user to save the product, compare it with another product, or add it to their Diabeats food history.
+
+Use Open Food Facts or the project’s existing food-data provider when available. Do not invent missing product information.
+
+## BioTrace results
+
+Display:
+
+* Product name, brand, image, and serving size
+* Total carbohydrates
+* Added and total sugar
+* Fiber
+* Protein
+* Sodium
+* Saturated fat
+* Calories
+* Ingredient list
+* Allergen information when available
+* Degree of processing when supported by reliable data
+* GMO-related information when explicitly available
+* Artificial sweeteners and notable additives
+* Data source and last-updated date
+
+## Diabetes-conscious summary
+
+Present an easy-to-understand rating:
+
+* **Better Fit**
+* **Use with Caution**
+* **Limit**
+* **Insufficient Information**
+
+Never label a food universally “safe,” “unsafe,” “good,” or “bad.” The rating must be based on transparent nutrition rules and the serving size—not an unrestricted AI opinion.
+
+Show the main reasons beneath the rating, such as:
+
+* High added sugar
+* High carbohydrate load
+* Low fiber
+* High sodium
+* Contains a non-sugar sweetener
+* Smaller serving size may be more appropriate
+* Nutrition data is incomplete
+
+Include a **Why this rating?** section that exposes the nutritional factors used.
+
+## GMO and ingredient transparency
+
+BioTrace must distinguish among:
+
+* **Verified:** The manufacturer or a reliable dataset explicitly provides the information.
+* **Possible:** An ingredient may commonly come from genetically engineered crops, but the specific product has not been verified.
+* **Unknown:** There is insufficient information.
+
+Never claim that a product contains genetically modified ingredients based only on the presence of corn, soy, canola, sugar beet, or another commonly engineered crop.
+
+Do not imply that “non-GMO” automatically means healthier or better for diabetes. Keep GMO transparency separate from the diabetes-conscious nutritional rating.
+
+## Personalized Diabeats connection
+
+If the user has established nutrition preferences or goals in Diabeats, use them only to personalize the explanation. For example:
+
+* “This product is high in added sugar compared with your selected goal.”
+* “This serving contains 34 grams of carbohydrates.”
+* “A similar product with more fiber and less added sugar may fit your goal better.”
+
+Do not diagnose conditions, predict blood-glucose changes, modify medications, or tell users how much insulin to take.
+
+## Better alternatives
+
+Add a **Better Alternatives** section that recommends comparable products with:
+
+* Less added sugar
+* More fiber
+* Lower sodium where relevant
+* Similar product type
+* Sufficient verified product data
+
+Explain why each alternative may be a better nutritional fit. Do not present sponsored products as neutral recommendations. If no reliable alternative exists, say so instead of generating one.
+
+## AI architecture and safeguards
+
+The nutritional rating must be produced by deterministic application logic using documented thresholds. AI may explain structured results in plain language, but it must not calculate nutrition values, invent ingredients, fabricate alternatives, or override the rule-based rating.
+
+Send only the minimum necessary product and preference data to the AI service. Do not send names, email addresses, medical records, authentication information, or other identifying details.
+
+Apply:
+
+* Authentication where appropriate
+* Per-user and per-IP rate limits
+* Daily AI usage limits
+* Server-side API calls
+* Secure environment-variable storage for API keys
+* Input validation
+* Output-length limits
+* Timeout and error handling
+* Usage logging without sensitive personal information
+* A non-AI fallback explanation when the AI service is unavailable
+
+Never expose API keys in frontend code or browser requests.
+
+## Safety notice
+
+Display this concise notice on BioTrace results:
+
+“BioTrace provides general food and nutrition information. Product formulations and individual responses can vary. Verify the package label and consult a qualified healthcare professional for personal medical guidance.”
+
+## Missing and conflicting data
+
+When information is incomplete or conflicting:
+
+* Clearly identify what is missing
+* Display **Insufficient Information** when a responsible rating cannot be produced
+* Give priority to the current physical package label
+* Show the external data source
+* Allow the user to report incorrect product information
+* Never fill missing values with AI-generated estimates
+
+## Saved scans and privacy
+
+Allow authenticated users to save and delete scanned products. Store only the data needed for this feature. Users must be able to remove individual scans and clear their scan history.
+
+Do not sell, advertise with, or unnecessarily expose users’ food history or health-related preferences.
+
+## Implementation requirements
+
+Before changing code:
+
+1. Inspect the existing Diabeats architecture, database schema, authentication, nutrition logic, API routes, design system, and current tests.
+2. Reuse existing components and services where practical.
+3. Create a short implementation plan identifying the files and database changes required.
+4. Implement BioTrace incrementally without rewriting unrelated parts of the application.
+5. Preserve all current Diabeats features.
+6. Add loading, empty, success, permission-denied, product-not-found, incomplete-data, and API-error states.
+7. Ensure every button and interaction works on desktop and mobile.
+8. Add tests for barcode lookup, ratings, missing data, rate limiting, authentication, saved scans, deletion, and AI fallback behavior.
+9. Run the existing lint, type-check, test, build, and release-check commands.
+10. Fix any issues introduced by this integration.
+
+First show me the implementation plan and proposed file changes. Do not begin a major database migration or remove existing functionality without explaining the change.

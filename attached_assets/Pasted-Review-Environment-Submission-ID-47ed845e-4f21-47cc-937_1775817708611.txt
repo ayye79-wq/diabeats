@@ -1,0 +1,40 @@
+Review Environment
+Submission ID: 47ed845e-4f21-47cc-937e-316a93896281
+Review date: April 10, 2026
+Review Device: iPhone 17 Pro Max and iPad Air 11-inch (M3) 
+Version reviewed: 1.1.0
+
+Guideline 4 - Design
+
+Issue Description
+
+Parts of the app's user interface were crowded, laid out, or displayed in a way that made it difficult to use the app when reviewed on iPad Air 11-inch (M3) running iPadOS 26.4.
+
+Specifically, the "Upload from Gallery"button was not visible when accessing "scan menu"
+
+Next Steps
+
+To resolve this issue, revise the app to ensure that the content and controls on the screen are easy to read and interact with.
+
+Note that users expect apps they download to function on all the devices where they are available. For example, apps that may be downloaded onto iPad devices should function as expected for iPad users. Learn more about supporting apps on compatible devices.
+
+Guidelines 5.1.1(i) - Legal - Privacy - Data Collection and 5.1.2(i) - Legal - Privacy - Data Use
+
+Issue Description
+
+The app appears to share the user’s personal data with a third-party AI service but the app does not clearly before sharing the data. 
+
+Apps may only ￼use, transmit, or share personal data after they meet all of the following requirements: 
+
+- Disclose what data will be sent
+- Specify who the data is sent to
+- Obtain the user’s permission before sending data
+- Identify in the privacy policy what data the app collects, how it collects that data, all uses of that data, and confirm any third party the app shares data with provides the same or equal protection
+
+Next Steps
+
+If the app sends user data to a third-party AI service, revise the app to explain what data is sent, identify who the data is sent to, and ask the user’s permission before sharing personal data with a third-party AI service.
+
+If it does not already, the app’s privacy policy must also identify what data the app collects, how it collects that data, and all uses of that data, including if it is shared with a third-party AI service. Note that only including this information in the app's Terms of Service or Privacy Policy is not sufficient.
+
+If the app does not send user data to a third-party AI service or does not include a third-party AI service, reply to this rejection to confirm and add this information to the App Review Information section of App Store Connect.

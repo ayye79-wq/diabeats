@@ -101,6 +101,8 @@ export function AiConsentModal({ visible, onAgree, onDecline }: Props) {
           </Text>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="I Agree — Enable AI Features"
             style={[styles.agreeBtn, { backgroundColor: Colors.brand.primary }]}
             onPress={onAgree}
           >
@@ -108,7 +110,12 @@ export function AiConsentModal({ visible, onAgree, onDecline }: Props) {
             <Text style={styles.agreeBtnText}>I Agree — Enable AI Features</Text>
           </Pressable>
 
-          <Pressable style={styles.declineBtn} onPress={onDecline}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="No Thanks"
+            style={styles.declineBtn}
+            onPress={onDecline}
+          >
             <Text style={[styles.declineBtnText, { color: c.textMuted }]}>No Thanks</Text>
           </Pressable>
         </ScrollView>
