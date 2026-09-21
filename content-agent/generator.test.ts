@@ -54,3 +54,17 @@ test("generation prompt exposes only the approved feature manifest", () => {
   assert.match(prompt, /Never claim portion sliders/);
   assert.match(prompt, /glucose prediction/);
 });
+
+test("initial generation prompt does not include retry feedback", () => {
+  const prompt = generationPrompt([]);
+
+  assert.doesNotMatch(prompt, /previous draft was rejected/i);
+});
+
+test("retry prompt includes the specific validation failure", () => {
+  const failure = "Use manifest-derived feature claims instead of free-form DiabEats capability copy";
+  const prompt = generationPrompt([], failure);
+
+  assert.match(prompt, new RegExp(failure));
+  assert.match(prompt, /correct that specific issue/i);
+});
