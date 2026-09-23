@@ -111,6 +111,44 @@ test("returns Insufficient Information rather than inventing a rating", () => {
   assert.equal(rating.label, "insufficient-information");
 });
 
+test("identifies exact Deer Park plain water record without inventing nutrition values", () => {
+  const normalized = normalizeProduct({
+    code: "0082657008523",
+    product_name: "DEER PARK WATER",
+    ingredients_text: "100% natural spring water",
+  }, "082657008523");
+  const rating = computeBioTraceRating(normalized);
+  assert.equal(rating.label, "better-fit");
+  assert.equal(rating.factors[0]?.key, "plain-water");
+  assert.equal(normalized.nutrition.sugarsGrams, null);
+  assert.match(rating.summary, /values missing.*unknown/i);
+});
+
+test("does not infer plain water from a name alone or rate flavored water without nutrition", () => {
+  const missingIngredients = normalizeProduct({ product_name: "DEER PARK WATER" }, "082657008523");
+  assert.equal(computeBioTraceRating(missingIngredients).label, "insufficient-information");
+
+  for (const [product_name, ingredients_text] of [
+    ["Flavored water", "water, natural flavors"],
+    ["Sweetened water", "water, sugar"],
+    ["Flavored water", "sparkling water, sucralose"],
+    ["Flavored water", "water"],
+    ["Sweetened water", "water"],
+  ]) {
+    const flavored = normalizeProduct({ product_name, ingredients_text }, "082657008523");
+    assert.equal(computeBioTraceRating(flavored).label, "insufficient-information", product_name);
+  }
+});
+
+test("contradictory carbohydrate data prevents the plain-water exception", () => {
+  const suspect = product({
+    name: "Water",
+    ingredientsText: "spring water",
+    nutrition: { ...product().nutrition, carbohydratesGrams: 25, sugarsGrams: null, saturatedFatGrams: null, sodiumMilligrams: null },
+  });
+  assert.equal(computeBioTraceRating(suspect).label, "insufficient-information");
+});
+
 test("normalizes mixed provider nutrients into one honest serving basis", () => {
   const normalized = normalizeProduct(
     {

@@ -108,6 +108,18 @@ function factor(
   return { key, label, impact, value, basis };
 }
 
+/** A single-ingredient, unflavored water record can be identified without a nutrition panel. */
+function isVerifiedPlainWater(product: NormalizedProduct): boolean {
+  const ingredient = product.ingredientsText?.trim().toLowerCase().replace(/[.。]+$/u, "").trim();
+  if (!ingredient || !/^(?:100%\s+)?(?:(?:natural|filtered)\s+)?(?:(?:spring|purified|drinking|distilled|mineral)\s+)?water$/u.test(ingredient)) return false;
+  if (!/\bwater\b/iu.test(product.name)) return false;
+  if (/\b(?:flavou?red|sweetened|infused|vitamin|electrolyte|juice|soda|sparkling)\b/iu.test(product.name)) return false;
+  if (product.ingredients.hasSweeteners || product.ingredients.hasAdditives || product.ingredients.additives.length > 0) return false;
+  const { nutrition } = product;
+  return [nutrition.energyKcal, nutrition.carbohydratesGrams, nutrition.sugarsGrams, nutrition.addedSugarsGrams]
+    .every((value) => value === null || value === 0);
+}
+
 /**
  * Computes the deterministic BioTrace rating for a normalized product.
  *
@@ -117,6 +129,17 @@ function factor(
  * "insufficient-information" regardless of score.
  */
 export function computeBioTraceRating(product: NormalizedProduct): BioTraceRating {
+  if (isVerifiedPlainWater(product)) {
+    return {
+      label: "better-fit",
+      display: RATING_DISPLAY["better-fit"],
+      score: 5,
+      factors: [factor("plain-water", "Ingredient list identifies plain water", "positive", null, "n/a")],
+      perServing: false,
+      summary: "The listed ingredient is plain water. Nutrition values missing from the product record are left unknown.",
+      disclaimer: BIOTRACE_DISCLAIMER,
+    };
+  }
   const { nutrition, ingredients } = product;
   const factors: RatingFactor[] = [];
   let score = 0;
