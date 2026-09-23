@@ -113,6 +113,7 @@ function isVerifiedPlainWater(product: NormalizedProduct): boolean {
   const ingredient = product.ingredientsText?.trim().toLowerCase().replace(/[.。]+$/u, "").trim();
   if (!ingredient || !/^(?:100%\s+)?(?:(?:natural|filtered)\s+)?(?:(?:spring|purified|drinking|distilled|mineral)\s+)?water$/u.test(ingredient)) return false;
   if (!/\bwater\b/iu.test(product.name)) return false;
+  if (/\b(?:flavou?red|sweetened|infused|vitamin|electrolyte|juice|soda|sparkling)\b/iu.test(product.name)) return false;
   if (product.ingredients.hasSweeteners || product.ingredients.hasAdditives || product.ingredients.additives.length > 0) return false;
   const { nutrition } = product;
   return [nutrition.energyKcal, nutrition.carbohydratesGrams, nutrition.sugarsGrams, nutrition.addedSugarsGrams]
