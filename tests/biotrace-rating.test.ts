@@ -128,9 +128,15 @@ test("does not infer plain water from a name alone or rate flavored water withou
   const missingIngredients = normalizeProduct({ product_name: "DEER PARK WATER" }, "082657008523");
   assert.equal(computeBioTraceRating(missingIngredients).label, "insufficient-information");
 
-  for (const ingredients_text of ["water, natural flavors", "water, sugar", "sparkling water, sucralose"]) {
-    const flavored = normalizeProduct({ product_name: "Flavored water", ingredients_text }, "082657008523");
-    assert.equal(computeBioTraceRating(flavored).label, "insufficient-information");
+  for (const [product_name, ingredients_text] of [
+    ["Flavored water", "water, natural flavors"],
+    ["Sweetened water", "water, sugar"],
+    ["Flavored water", "sparkling water, sucralose"],
+    ["Flavored water", "water"],
+    ["Sweetened water", "water"],
+  ]) {
+    const flavored = normalizeProduct({ product_name, ingredients_text }, "082657008523");
+    assert.equal(computeBioTraceRating(flavored).label, "insufficient-information", product_name);
   }
 });
 
