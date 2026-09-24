@@ -5,6 +5,7 @@ import { seedIfEmpty } from "./seed";
 import { ensureSecuritySchema } from "./db";
 import * as fs from "fs";
 import * as path from "path";
+import { renderSeoPage, seoPages } from "./templates/seo-pages";
 
 const app = express();
 // Replit forwards public traffic through a local reverse proxy. Trust that one
@@ -211,6 +212,12 @@ function configureExpoAndLanding(app: express.Application) {
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
+${seoPages.map((page) => `  <url>
+    <loc>https://diabeatsapp.com${page.path}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>`).join("\n")}
 </urlset>`;
     res.setHeader("Content-Type", "application/xml");
     res.status(200).send(xml);
@@ -219,6 +226,14 @@ function configureExpoAndLanding(app: express.Application) {
   app.get("/privacy", (_req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.status(200).send(privacyHtml);
+  });
+
+  seoPages.forEach((page) => {
+    app.get(page.path, (_req: Request, res: Response) => {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=300");
+      res.status(200).send(renderSeoPage(page));
+    });
   });
 
   app.get("/admin/feedback", (_req: Request, res: Response) => {
