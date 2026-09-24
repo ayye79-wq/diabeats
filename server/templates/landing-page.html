@@ -496,6 +496,23 @@
         color: var(--text-muted);
         text-align: center;
       }
+      .product-wrap {
+        align-self: center;
+      }
+      .product-shot-card {
+        width: 300px;
+        padding: 12px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.14);
+      }
+      .product-shot-card img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+      }
       .phone-frame {
         width: 220px;
         height: 440px;
@@ -536,10 +553,6 @@
         object-fit: cover;
         object-position: top center;
         background: #fff;
-      }
-      .real-app-screen.product-photo {
-        object-fit: contain;
-        padding: 14px;
       }
       .phone-screen .real-app-screen ~ * {
         display: none;
@@ -934,54 +947,10 @@
       <h2 class="screens-title">Real scans. Real DiabEats results.</h2>
       <div class="phones-row">
 
-        <!-- Phone 1: Discover / Restaurant Search -->
-        <div class="phone-wrap">
-          <div class="phone-frame">
-            <div class="phone-screen">
-              <img class="real-app-screen product-photo" src="/assets/images/real-efrutti-product.webp" alt="eFrutti Pizza candy package scanned with DiabEats" loading="lazy" width="1170" height="780" />
-              <div class="p-statusbar"><span>9:41</span><span>●●●</span></div>
-              <div class="s1-header">
-                <div class="s1-location">📍 New York, NY</div>
-                <div class="s1-search">🔍 Try "low carb dinner near me"</div>
-              </div>
-              <div class="s1-filters">
-                <span class="s1-chip active">All</span>
-                <span class="s1-chip">Better Choice</span>
-                <span class="s1-chip">Caution</span>
-              </div>
-              <div class="s1-body">
-                <div class="s1-card">
-                  <div class="s1-thumb">🥗</div>
-                  <div class="s1-info">
-                    <div class="s1-name">Casa Luz</div>
-                    <div class="s1-meta">Mexican · 0.3 mi</div>
-                    <span class="s1-tag tag-good">Better Choice</span>
-                  </div>
-                </div>
-                <div class="s1-card">
-                  <div class="s1-thumb">🍱</div>
-                  <div class="s1-info">
-                    <div class="s1-name">Sakura Garden</div>
-                    <div class="s1-meta">Japanese · 0.6 mi</div>
-                    <span class="s1-tag tag-good">Better Choice</span>
-                  </div>
-                </div>
-                <div class="s1-card">
-                  <div class="s1-thumb">🥩</div>
-                  <div class="s1-info">
-                    <div class="s1-name">The Grill House</div>
-                    <div class="s1-meta">American · 0.8 mi</div>
-                    <span class="s1-tag tag-mod">Moderate Carb</span>
-                  </div>
-                </div>
-              </div>
-              <div class="p-tabbar">
-                <div class="p-tab active"><div class="p-tab-icon">🍽</div>Discover</div>
-                <div class="p-tab"><div class="p-tab-icon">♡</div>Saved</div>
-                <div class="p-tab"><div class="p-tab-icon">💬</div>Assistant</div>
-                <div class="p-tab"><div class="p-tab-icon">👤</div>Profile</div>
-              </div>
-            </div>
+        <!-- Scanned product -->
+        <div class="phone-wrap product-wrap">
+          <div class="product-shot-card">
+            <img src="/assets/images/real-efrutti-product.webp" alt="eFrutti Pizza candy package scanned with DiabEats" loading="lazy" width="1170" height="780" />
           </div>
           <div class="phone-label">Scanned Product</div>
         </div>
