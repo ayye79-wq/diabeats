@@ -28,12 +28,12 @@ export default function ScanHubScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heading}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="scan-outline" size={27} color="#fff" />
-          </View>
           <Text style={[styles.title, { color: c.textPrimary }]}>Scan</Text>
-          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+          <Text style={[styles.subtitle, { color: c.textPrimary }]}>
             Choose what you&apos;d like to check.
+          </Text>
+          <Text style={[styles.trustLine, { color: c.textSecondary }]}>
+            Verified when possible • Estimates clearly labeled
           </Text>
         </View>
 
@@ -51,11 +51,15 @@ export default function ScanHubScreen() {
             <Ionicons name="restaurant-outline" size={26} color="#fff" />
           </View>
           <View style={styles.choiceCopy}>
+            <Text style={[styles.modeLabel, { color: Colors.brand.primary }]}>SMART DINING</Text>
             <Text style={[styles.choiceTitle, { color: c.textPrimary }]}>
               Scan a Restaurant Menu
             </Text>
-            <Text style={[styles.choiceSubtitle, { color: c.textSecondary }]}>
-              Find diabetes-conscious choices on any menu.
+            <Text style={[styles.choiceSubtitle, { color: c.textPrimary }]}>
+              Find diabetes-conscious choices from the information available on the menu.
+            </Text>
+            <Text style={[styles.methodNote, { color: c.textSecondary }]}>
+              We distinguish listed information from what couldn&apos;t be verified.
             </Text>
           </View>
           <Ionicons name="arrow-forward" size={21} color={Colors.brand.primary} />
@@ -75,11 +79,15 @@ export default function ScanHubScreen() {
             <Ionicons name="barcode-outline" size={26} color="#fff" />
           </View>
           <View style={styles.choiceCopy}>
+            <Text style={[styles.modeLabel, { color: "#236B45" }]}>BIOTRACE</Text>
             <Text style={[styles.choiceTitle, { color: c.textPrimary }]}>
-              Scan a Packaged Product with BioTrace
+              Scan a Packaged Product
             </Text>
-            <Text style={[styles.choiceSubtitle, { color: c.textSecondary }]}>
-              Check nutrition, ingredients, processing, and GMO transparency.
+            <Text style={[styles.choiceSubtitle, { color: c.textPrimary }]}>
+              Check nutrition, ingredients, processing, and source transparency.
+            </Text>
+            <Text style={[styles.methodNote, { color: c.textSecondary }]}>
+              Verified when source data supports it; unknowns stay unknown.
             </Text>
           </View>
           <Ionicons name="arrow-forward" size={21} color={Colors.brand.primary} />
@@ -93,17 +101,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 18, gap: 14 },
   heading: { marginBottom: 6 },
-  iconCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: Colors.brand.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 11,
-  },
   title: { fontSize: 29, fontFamily: "Inter_700Bold" },
-  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, marginTop: 5 },
+  subtitle: { fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 21, marginTop: 5 },
+  trustLine: { fontSize: 12, fontFamily: "Inter_500Medium", lineHeight: 18, marginTop: 4 },
   choice: {
     minHeight: 126,
     borderWidth: 1,
@@ -121,6 +121,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   choiceCopy: { flex: 1 },
+  modeLabel: { fontFamily: "Inter_700Bold", fontSize: 10, lineHeight: 14, letterSpacing: 0.7, marginBottom: 3 },
   choiceTitle: { fontFamily: "Inter_700Bold", fontSize: 16, lineHeight: 21 },
-  choiceSubtitle: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, marginTop: 5 },
+  choiceSubtitle: { fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 19, marginTop: 5 },
+  methodNote: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 5 },
 });
