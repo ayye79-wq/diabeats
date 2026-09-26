@@ -51,7 +51,7 @@ export default function ScanHubScreen() {
             <Ionicons name="restaurant-outline" size={26} color="#fff" />
           </View>
           <View style={styles.choiceCopy}>
-            <Text style={[styles.modeLabel, { color: Colors.brand.primary }]}>SMART DINING</Text>
+            <Text style={[styles.modeLabel, { color: isDark ? c.textSecondary : Colors.brand.primary }]}>SMART DINING</Text>
             <Text style={[styles.choiceTitle, { color: c.textPrimary }]}>
               Scan a Restaurant Menu
             </Text>
@@ -79,7 +79,7 @@ export default function ScanHubScreen() {
             <Ionicons name="barcode-outline" size={26} color="#fff" />
           </View>
           <View style={styles.choiceCopy}>
-            <Text style={[styles.modeLabel, { color: "#236B45" }]}>BIOTRACE</Text>
+            <Text style={[styles.modeLabel, { color: isDark ? c.textSecondary : "#236B45" }]}>BIOTRACE</Text>
             <Text style={[styles.choiceTitle, { color: c.textPrimary }]}>
               Scan a Packaged Product
             </Text>
