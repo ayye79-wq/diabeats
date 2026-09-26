@@ -127,6 +127,11 @@ export const productSourceSchema = z
     retrievedAt: z.string().datetime(),
     /** OFF data-completeness score if provided, else null. */
     completeness: z.number().finite().min(0).max(1).nullable(),
+    /** Optional USDA record metadata; older source records omit these fields. */
+    fdcId: z.number().int().positive().optional(),
+    dataType: z.enum(["Branded", "Foundation", "SR Legacy", "Survey (FNDDS)"]).optional(),
+    publicationDate: z.string().trim().max(40).nullable().optional(),
+    modifiedDate: z.string().trim().max(40).nullable().optional(),
   })
   .strict();
 

@@ -11,6 +11,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { getApiSession } from "@/lib/api-session";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export type PaywallTrigger =
   | "ai-limit"
@@ -144,6 +145,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const showPaywall = useCallback((trigger: PaywallTrigger) => {
     setPaywallTrigger(trigger);
     setPaywallVisible(true);
+    trackAnalyticsEvent("paywall_viewed", { trigger });
   }, []);
 
   const hidePaywall = useCallback(() => {
@@ -151,8 +153,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const purchaseMonthly = useCallback(async () => {
+    trackAnalyticsEvent("purchase_started", { plan: "monthly" });
     const purchasesModule = getPurchasesModule();
     if (!rcReady.current || !purchasesModule) {
+      trackAnalyticsEvent("purchase_failed", { plan: "monthly" });
       throw new Error("Purchases are not available right now. Please try again.");
     }
     try {
@@ -168,15 +172,22 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       await purchasesModule.default.purchaseStoreProduct(products[0]);
       await refreshSubscription();
       hidePaywall();
+      trackAnalyticsEvent("purchase_completed", { plan: "monthly" });
     } catch (e: any) {
-      if (e.userCancelled) return;
+      if (e.userCancelled) {
+        trackAnalyticsEvent("purchase_cancelled", { plan: "monthly" });
+        return;
+      }
+      trackAnalyticsEvent("purchase_failed", { plan: "monthly" });
       throw new Error(`${e.message}${e.underlyingErrorMessage ? " | " + e.underlyingErrorMessage : ""}`);
     }
   }, [hidePaywall, refreshSubscription]);
 
   const purchaseAnnual = useCallback(async () => {
+    trackAnalyticsEvent("purchase_started", { plan: "annual" });
     const purchasesModule = getPurchasesModule();
     if (!rcReady.current || !purchasesModule) {
+      trackAnalyticsEvent("purchase_failed", { plan: "annual" });
       throw new Error("Purchases are not available right now. Please try again.");
     }
     try {
@@ -192,19 +203,31 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       await purchasesModule.default.purchaseStoreProduct(products[0]);
       await refreshSubscription();
       hidePaywall();
+      trackAnalyticsEvent("purchase_completed", { plan: "annual" });
     } catch (e: any) {
-      if (e.userCancelled) return;
+      if (e.userCancelled) {
+        trackAnalyticsEvent("purchase_cancelled", { plan: "annual" });
+        return;
+      }
+      trackAnalyticsEvent("purchase_failed", { plan: "annual" });
       throw new Error(`${e.message}${e.underlyingErrorMessage ? " | " + e.underlyingErrorMessage : ""}`);
     }
   }, [hidePaywall, refreshSubscription]);
 
   const restorePurchases = useCallback(async () => {
+    trackAnalyticsEvent("restore_started");
     const purchasesModule = getPurchasesModule();
-    if (!rcReady.current || !purchasesModule) return;
+    if (!rcReady.current || !purchasesModule) {
+      trackAnalyticsEvent("restore_failed", { outcome: "error" });
+      return;
+    }
     try {
       await purchasesModule.default.restorePurchases();
       await refreshSubscription();
-    } catch {}
+      trackAnalyticsEvent("restore_completed");
+    } catch {
+      trackAnalyticsEvent("restore_failed", { outcome: "error" });
+    }
   }, [refreshSubscription]);
 
   const canAskAi = isPremium || usage.aiQuestions < AI_QUESTION_LIMIT;

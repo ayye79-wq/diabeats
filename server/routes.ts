@@ -16,6 +16,7 @@ import {
   biotraceScans,
   biotraceSavedFoods,
   biotraceCorrections,
+  mealPhotoAnalyses,
 } from "./schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { RESTAURANTS } from "../data/restaurants";
@@ -52,6 +53,16 @@ import { computeBioTraceRating } from "../shared/biotrace-rating";
 import { lookupByBarcode, searchByName } from "./services/open-food-facts";
 import { findAlternatives } from "./services/biotrace-alternatives";
 import { lookupUsdaFood, searchUsdaFoods } from "./services/usda-fooddata-central";
+import { resolveNamedGenericCandidates } from "./services/usda-generic-resolver";
+import { searchGenericFoods } from "./services/usda-food-data";
+import {
+  calculateMealPhotoAnalysis,
+  mealPhotoResponseSchema,
+  mealPhotoVisionSchema,
+  normalizeNutritionTo100g,
+  type MealPhotoItem,
+} from "../shared/meal-photo";
+import { createMealAnalysisToken, verifyMealAnalysisToken } from "./services/meal-analysis-token";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const AI_QUESTION_LIMIT = 5;
@@ -67,6 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   const aiResponseEvidence = (source: string, basis: string, verified = false) =>
     makeEvidence(source, basis, verified);
+  const mealTokenSecret = process.env.SESSION_SECRET ?? "";
 
   function validate<T>(schema: z.ZodType<T>, body: unknown, res: Response): T | null {
     const parsed = schema.safeParse(body);
@@ -746,6 +758,184 @@ Only include items you can clearly read. If image quality is poor, return empty 
         return res.status(500).json({ error: "Could not parse menu analysis. Please try again." });
       }
       res.status(500).json({ error: "Menu analysis failed. Please try again." });
+    }
+  });
+
+  app.post("/api/meal-photo", requireSession, aiRateLimit, async (req: Request, res: Response) => {
+    const input = validate(
+      z.object({
+        image: z.string().min(100).max(8_000_000).regex(/^[A-Za-z0-9+/=\s]+$/, "Image must be base64 encoded"),
+        imageType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional().default("image/jpeg"),
+      }).strict(),
+      req.body,
+      res,
+    );
+    if (!input) return;
+    if (!(await consumeAiQuota(req, res, "scan", SCAN_LIMIT))) return;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 1800,
+        response_format: { type: "json_object" },
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${input.imageType};base64,${input.image}`, detail: "high" } },
+            {
+              type: "text",
+              text: `Inspect this plated meal photo. Identify only foods that are visibly supported. Do not infer hidden ingredients, nutrition, glycemic index, glucose response, medication advice, or a health score. Portion estimates are approximate visual estimates and must include grams so the user can correct them. When an item cannot be identified, put a short visual description in unknownItems instead of guessing.
+
+Return ONLY JSON:
+{
+  "status": "ready" | "incomplete" | "unreadable",
+  "mealName": "short neutral meal description",
+  "detections": [{
+    "id": "stable short id such as food-1",
+    "name": "visible food name",
+    "searchTerm": "precise generic USDA search phrase, including cooked/raw when visibly supportable",
+    "confidence": "low" | "medium" | "high",
+    "portionLabel": "approximate visible portion such as about 1 cup",
+    "estimatedGrams": number,
+    "visibleEvidence": "what in the photo supports this identification"
+  }],
+  "unknownItems": ["short visual description"]
+}
+
+Use status unreadable if no plated food can be assessed. Use incomplete if any substantial visible item is unknown. Keep estimatedGrams between 5 and 2000. Do not use brand names unless clearly visible.`,
+            },
+          ],
+        }],
+      });
+      const vision = safeParseAiJson(mealPhotoVisionSchema, response.choices[0]?.message?.content ?? "{}");
+      assertSafeEducationalText(vision);
+      if (vision.status === "unreadable" || vision.detections.length === 0) {
+        return res.status(422).json({ error: "We couldn’t identify enough visible food. Try a brighter, closer photo of the whole plate." });
+      }
+
+      const items: MealPhotoItem[] = await Promise.all(vision.detections.map(async (detection) => {
+        try {
+          const candidates = await searchGenericFoods(detection.searchTerm, 20);
+          const resolution = resolveNamedGenericCandidates(detection.searchTerm, candidates, "USDA FoodData Central");
+          if (resolution.kind === "generic") {
+            const nutrition = normalizeNutritionTo100g(resolution.product.nutrition);
+            if (nutrition) {
+              return {
+                ...detection,
+                portionGrams: detection.estimatedGrams,
+                confirmed: false,
+                nutrition,
+                source: resolution.product.source,
+                matchedFoodName: resolution.product.name,
+                resolutionNote: resolution.product.resolution?.explanation ?? "USDA returned a generic food match. Confirm the food and portion.",
+              };
+            }
+          }
+          return {
+            ...detection,
+            portionGrams: detection.estimatedGrams,
+            confirmed: false,
+            nutrition: null,
+            source: null,
+            matchedFoodName: null,
+            resolutionNote: resolution.kind === "confirmation-required"
+              ? resolution.reason
+              : "No single provider-supported nutrition match was available. Nutrition was not guessed.",
+          };
+        } catch (error) {
+          console.error("Meal photo nutrition lookup failed:", detection.searchTerm, error);
+          return {
+            ...detection,
+            portionGrams: detection.estimatedGrams,
+            confirmed: false,
+            nutrition: null,
+            source: null,
+            matchedFoodName: null,
+            resolutionNote: "Nutrition lookup was temporarily unavailable. The food remains visible for confirmation.",
+          };
+        }
+      }));
+
+      const analysis = calculateMealPhotoAnalysis({
+        mealName: vision.mealName,
+        items,
+        unknownItems: vision.unknownItems,
+      });
+      res.json(mealPhotoResponseSchema.parse({
+        ...analysis,
+        saveToken: createMealAnalysisToken({
+          secret: mealTokenSecret,
+          sessionId: req.sessionIdentity!.id,
+          analysis,
+        }),
+      }));
+    } catch (error) {
+      console.error("POST /api/meal-photo error:", error);
+      res.status(500).json({ error: "Meal photo analysis failed. Please try again with a clearer photo." });
+    }
+  });
+
+  app.post("/api/meal-photo/saved", requireSession, async (req: Request, res: Response) => {
+    const parsed = z.object({
+      saveToken: z.string().min(40).max(30_000),
+      portions: z.array(z.object({
+        id: z.string().trim().min(1).max(60),
+        portionGrams: z.number().finite().min(1).max(3_000),
+        confirmed: z.boolean(),
+      }).strict()).max(20),
+    }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid meal analysis." });
+    try {
+      const canonical = verifyMealAnalysisToken({
+        secret: mealTokenSecret,
+        token: parsed.data.saveToken,
+        sessionId: req.sessionIdentity!.id,
+      });
+      const updates = new Map(parsed.data.portions.map((portion) => [portion.id, portion]));
+      const analysis = calculateMealPhotoAnalysis({
+        mealName: canonical.mealName,
+        unknownItems: canonical.unknownItems,
+        items: canonical.items.map((item) => {
+          const update = updates.get(item.id);
+          return update ? { ...item, portionGrams: update.portionGrams, confirmed: update.confirmed } : item;
+        }),
+      });
+      const [row] = await db.insert(mealPhotoAnalyses).values({
+        sessionId: req.sessionIdentity!.id,
+        mealName: analysis.mealName,
+        analysis,
+      }).returning();
+      res.status(201).json(row);
+    } catch (error) {
+      console.error("POST /api/meal-photo/saved error:", error);
+      res.status(500).json({ error: "Could not save this meal analysis." });
+    }
+  });
+
+  app.get("/api/meal-photo/saved", requireSession, async (req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(mealPhotoAnalyses)
+        .where(eq(mealPhotoAnalyses.sessionId, req.sessionIdentity!.id))
+        .orderBy(desc(mealPhotoAnalyses.id))
+        .limit(100);
+      res.json(rows);
+    } catch (error) {
+      console.error("GET /api/meal-photo/saved error:", error);
+      res.status(500).json({ error: "Could not load saved meal analyses." });
+    }
+  });
+
+  app.delete("/api/meal-photo/saved/:id", requireSession, async (req: Request, res: Response) => {
+    const input = validate(z.object({ id: z.coerce.number().int().positive() }), req.params, res);
+    if (!input) return;
+    try {
+      const deleted = await db.delete(mealPhotoAnalyses)
+        .where(and(eq(mealPhotoAnalyses.id, input.id), eq(mealPhotoAnalyses.sessionId, req.sessionIdentity!.id)))
+        .returning({ id: mealPhotoAnalyses.id });
+      if (!deleted.length) return res.status(404).json({ error: "Saved meal analysis not found." });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("DELETE /api/meal-photo/saved/:id error:", error);
+      res.status(500).json({ error: "Could not delete this saved meal analysis." });
     }
   });
 

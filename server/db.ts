@@ -98,5 +98,16 @@ export async function ensureSecuritySchema(): Promise<void> {
       status TEXT NOT NULL DEFAULT 'open',
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
+
+    -- Plate analysis history: structured results only; raw photos are never stored.
+    CREATE TABLE IF NOT EXISTS meal_photo_analyses (
+      id SERIAL PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES app_sessions(id) ON DELETE CASCADE,
+      meal_name TEXT NOT NULL,
+      analysis JSONB NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS meal_photo_analyses_session_id_idx
+      ON meal_photo_analyses(session_id, id DESC);
   `);
 }

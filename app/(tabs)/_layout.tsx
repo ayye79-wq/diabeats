@@ -78,6 +78,12 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="plate"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="saved"
         options={{
           title: "Saved",
