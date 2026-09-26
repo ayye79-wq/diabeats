@@ -56,10 +56,10 @@ export default function ScanHubScreen() {
               Scan a Restaurant Menu
             </Text>
             <Text style={[styles.choiceSubtitle, { color: c.textPrimary }]}>
-              Find diabetes-conscious choices from the information available on the menu.
+              Review menu items with diabetes-conscious context based on the information we can identify.
             </Text>
             <Text style={[styles.methodNote, { color: c.textSecondary }]}>
-              We distinguish listed information from what couldn&apos;t be verified.
+              Estimates are labeled, and missing information stays unknown.
             </Text>
           </View>
           <Ionicons name="arrow-forward" size={21} color={Colors.brand.primary} />
