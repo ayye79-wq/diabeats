@@ -30,6 +30,7 @@ import {
   syncPendingBioTraceScans,
   type LocalBioTraceScan,
 } from "@/lib/biotrace-history";
+import { mealPhotoAnalysisSchema, type MealPhotoAnalysis } from "@/shared/meal-photo";
 
 const OUTCOME_CONFIG: Record<BloodSugarOutcome, { label: string; color: string; bg: string; icon: string }> = {
   good: { label: "Stable", color: "#166534", bg: "#dcfce7", icon: "checkmark-circle" },
@@ -38,7 +39,7 @@ const OUTCOME_CONFIG: Record<BloodSugarOutcome, { label: string; color: string; 
   not_measured: { label: "Not measured", color: "#4b5563", bg: "#f3f4f6", icon: "remove-circle-outline" },
 };
 
-type Tab = "restaurants" | "meals" | "foods" | "scans" | "logs";
+type Tab = "restaurants" | "meals" | "plates" | "foods" | "scans" | "logs";
 
 type SavedBioTraceFood = {
   id: number;
@@ -58,6 +59,12 @@ type BioTraceScan = {
   source: string;
 };
 type DisplayBioTraceScan = BioTraceScan | LocalBioTraceScan;
+type SavedPlateAnalysis = {
+  id: number;
+  mealName: string;
+  analysis: MealPhotoAnalysis;
+  createdAt: string | null;
+};
 
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
@@ -93,6 +100,20 @@ export default function SavedScreen() {
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/biotrace/scans");
       return response.json();
+    },
+  });
+  const { data: savedPlateAnalyses = [], refetch: refetchSavedPlateAnalyses } = useQuery<SavedPlateAnalysis[]>({
+    queryKey: ["/api/meal-photo/saved"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/meal-photo/saved");
+      const rows: unknown = await response.json();
+      if (!Array.isArray(rows)) return [];
+      return rows.flatMap((row: any) => {
+        const parsed = mealPhotoAnalysisSchema.safeParse(row?.analysis);
+        return parsed.success
+          ? [{ id: Number(row.id), mealName: String(row.mealName), analysis: parsed.data, createdAt: row.createdAt ?? null }]
+          : [];
+      });
     },
   });
   const refreshLocalScans = useCallback(async () => {
@@ -169,6 +190,25 @@ export default function SavedScreen() {
     ]);
   };
 
+  const handleDeletePlateAnalysis = (meal: SavedPlateAnalysis) => {
+    const remove = async () => {
+      try {
+        await apiRequest("DELETE", `/api/meal-photo/saved/${meal.id}`);
+        await refetchSavedPlateAnalyses();
+      } catch {
+        Alert.alert("Couldn’t remove meal", "Please try again.");
+      }
+    };
+    if (Platform.OS === "web") {
+      if (confirm(`Remove ${meal.mealName} from saved plate analyses?`)) void remove();
+      return;
+    }
+    Alert.alert("Remove saved meal", `Remove ${meal.mealName}? The original photo was never stored.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => void remove() },
+    ]);
+  };
+
   const handleDeleteBioTraceScan = (scan: DisplayBioTraceScan) => {
     const remove = async () => {
       if ("localId" in scan) {
@@ -234,6 +274,7 @@ export default function SavedScreen() {
           {([
             { id: "restaurants" as Tab, label: `Places (${savedRestaurantList.length})` },
             { id: "meals" as Tab, label: `Meals (${savedMealList.length})` },
+            { id: "plates" as Tab, label: `Plate Analyses (${savedPlateAnalyses.length})` },
               { id: "foods" as Tab, label: `Foods (${savedBioTraceFoods.length})` },
               { id: "scans" as Tab, label: `Scans (${visibleBioTraceScans.length})` },
             { id: "logs" as Tab, label: `Logs (${mealLog.length})` },
@@ -345,6 +386,66 @@ export default function SavedScreen() {
                 </View>
               </Pressable>
             ))
+          )
+        ) : tab === "plates" ? (
+          savedPlateAnalyses.length === 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="camera-outline" size={48} color={c.textMuted} />
+              <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>No saved plate analyses</Text>
+              <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+                Analyze a plated meal and save its structured estimate here. Meal photos are never stored.
+              </Text>
+              <Pressable
+                onPress={() => router.push("/(tabs)/plate")}
+                style={styles.scanFoodButton}
+                accessibilityRole="button"
+                accessibilityLabel="Analyze a meal photo"
+              >
+                <Text style={styles.scanFoodButtonText}>Analyze a plate</Text>
+              </Pressable>
+            </View>
+          ) : (
+            savedPlateAnalyses.map((meal) => {
+              const tone = meal.analysis.impact.level === "low"
+                ? { bg: "#DCFCE7", color: "#166534", label: "Low estimate" }
+                : meal.analysis.impact.level === "moderate"
+                  ? { bg: "#FEF3C7", color: "#92400E", label: "Moderate estimate" }
+                  : meal.analysis.impact.level === "high"
+                    ? { bg: "#FEE2E2", color: "#991B1B", label: "High estimate" }
+                    : { bg: "#E5E7EB", color: "#374151", label: "Needs review" };
+              return (
+                <Pressable
+                  key={meal.id}
+                  onPress={() => router.push({ pathname: "/(tabs)/plate" as any, params: { savedId: String(meal.id) } })}
+                  style={({ pressed }) => [
+                    styles.mealCard,
+                    { backgroundColor: c.cardBg, borderColor: c.border, opacity: pressed ? 0.92 : 1 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open saved plate analysis for ${meal.mealName}`}
+                >
+                  <View style={styles.mealCardHeader}>
+                    <View style={styles.mealCardInfo}>
+                      <Text style={[styles.mealName, { color: c.textPrimary }]} numberOfLines={1}>{meal.mealName}</Text>
+                      <Text style={[styles.mealRestaurant, { color: c.textSecondary }]}>
+                        {meal.analysis.items.length} visible foods · photo not stored
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => handleDeletePlateAnalysis(meal)} hitSlop={12} accessibilityLabel={`Remove ${meal.mealName}`}>
+                      <Ionicons name="trash-outline" size={18} color={Colors.brand.avoid} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.mealCardFooter}>
+                    <View style={[styles.foodRating, { backgroundColor: tone.bg }]}>
+                      <Text style={[styles.foodRatingText, { color: tone.color }]}>{tone.label}</Text>
+                    </View>
+                    <Text style={[styles.carbRange, { color: c.textMuted }]}>
+                      {meal.analysis.totals.carbohydratesGrams === null ? "Carbs unavailable" : `${meal.analysis.totals.carbohydratesGrams}g carbs`}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })
           )
         ) : tab === "foods" ? (
           savedBioTraceFoods.length === 0 ? (

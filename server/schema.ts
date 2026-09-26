@@ -204,6 +204,21 @@ export const biotraceCorrections = pgTable("biotrace_corrections", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/** Owner-scoped plate analyses. Raw meal photos are never persisted. */
+export const mealPhotoAnalyses = pgTable(
+  "meal_photo_analyses",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => appSessions.id, { onDelete: "cascade" }),
+    mealName: text("meal_name").notNull(),
+    analysis: jsonb("analysis").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("meal_photo_analyses_session_id_idx").on(table.sessionId, table.id)],
+);
+
 export type Restaurant = typeof restaurants.$inferSelect;
 export type MenuItem = typeof menuItems.$inferSelect;
 export type Order = typeof orders.$inferSelect;
@@ -214,3 +229,4 @@ export type BioTraceProduct = typeof biotraceProducts.$inferSelect;
 export type BioTraceScan = typeof biotraceScans.$inferSelect;
 export type BioTraceSavedFood = typeof biotraceSavedFoods.$inferSelect;
 export type BioTraceCorrection = typeof biotraceCorrections.$inferSelect;
+export type MealPhotoAnalysisRow = typeof mealPhotoAnalyses.$inferSelect;

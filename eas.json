@@ -14,6 +14,13 @@
         "buildType": "apk"
       }
     },
+    "android-analytics-test": {
+      "extends": "preview",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_NATIVE_ANALYTICS_ENABLED": "true"
+      }
+    },
     "production": {
       "distribution": "store",
       "env": {
@@ -24,6 +31,16 @@
       },
       "android": {
         "buildType": "app-bundle",
+        "autoIncrement": true
+      }
+    },
+    "testflight-analytics": {
+      "extends": "production",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_NATIVE_ANALYTICS_ENABLED": "true"
+      },
+      "ios": {
         "autoIncrement": true
       }
     }
